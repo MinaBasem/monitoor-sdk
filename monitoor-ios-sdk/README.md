@@ -136,6 +136,65 @@ Monitoor.configure(
 
 ---
 
+## Button Tracking
+
+The easiest way to count button presses. No need to add `Monitoor.track()` calls inside your action closures.
+
+### SwiftUI — `.monitoorTap()` modifier
+
+Apply to any tappable view. It fires alongside the button's own action.
+
+```swift
+// Basic
+Button("Subscribe") { subscribe() }
+    .monitoorTap("subscribe_tapped")
+
+// With properties
+Button("Delete Account") { confirmDelete() }
+    .monitoorTap("delete_account_tapped", properties: ["source": "settings"])
+
+// Works on any tappable view, not just Button
+Image(systemName: "heart")
+    .onTapGesture { likePost() }
+    .monitoorTap("post_liked")
+```
+
+### UIKit — `MonitoorButton` subclass
+
+Drop-in replacement for `UIButton`:
+
+```swift
+let buyButton = MonitoorButton(eventName: "buy_premium_tapped")
+let deleteButton = MonitoorButton(
+    eventName: "delete_account_tapped",
+    properties: ["source": "settings"]
+)
+```
+
+### UIKit — extension for existing buttons
+
+Use when you can't change the button class (e.g. third-party views):
+
+```swift
+myExistingButton.monitoor_trackTaps(eventName: "sign_in_tapped")
+```
+
+---
+
+## Session Duration
+
+The SDK automatically tracks how long each session lasts. When the app goes to the background, a `$app_background` event is sent with a `$session_duration_s` property (seconds as a `Double`).
+
+You can also read the current elapsed session time at any point:
+
+```swift
+let seconds = Monitoor.sessionDuration  // e.g. 142.7
+```
+
+A new session starts when the app opens, or after 30 minutes of inactivity in the background (configurable via `sessionTimeout` in `MonitoorOptions`).
+
+---
+
 ## Tracking Events
 
 ### Simple event
@@ -172,6 +231,8 @@ Monitoor.track("onboarding_flow")
 ---
 
 ## Screen Views
+
+> **Note:** Screen view tracking records only the *name* of the screen the user is on — it does not take screenshots, record video, or capture anything the user sees. The `captureSessionRecordings` option (separate, opt-in, currently not implemented) would be for actual screen recordings.
 
 ### UIKit (automatic)
 

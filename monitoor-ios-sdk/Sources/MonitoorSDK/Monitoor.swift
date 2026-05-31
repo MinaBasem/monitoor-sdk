@@ -104,6 +104,19 @@ public final class Monitoor {
         )
     }
 
+    // MARK: - Session
+
+    /// Elapsed time in seconds since the current session started.
+    ///
+    /// A new session begins when the app opens, or after 30 minutes of inactivity in the background.
+    ///
+    /// ```swift
+    /// let seconds = Monitoor.sessionDuration  // e.g. 142.7
+    /// ```
+    public static var sessionDuration: TimeInterval {
+        core.sessionDuration
+    }
+
     // MARK: - Manual flush
 
     /// Forces an immediate flush of all buffered events. Useful in testing or before critical operations.

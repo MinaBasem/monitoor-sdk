@@ -22,6 +22,11 @@ final class SessionManager {
         lock.withLock { sessionStart }
     }
 
+    /// Elapsed time in seconds since the current session started.
+    var duration: TimeInterval {
+        lock.withLock { Date().timeIntervalSince(sessionStart) }
+    }
+
     /// Records that an event occurred now, for session expiry tracking.
     func recordActivity() {
         lock.withLock { lastEventAt = Date() }

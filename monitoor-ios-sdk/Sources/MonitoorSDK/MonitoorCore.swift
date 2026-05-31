@@ -161,6 +161,11 @@ final class MonitoorCore {
         )
     }
 
+    var sessionDuration: TimeInterval {
+        guard isConfigured else { return 0 }
+        return sessionManager.duration
+    }
+
     func flush(completion: (() -> Void)?) {
         guard isConfigured else { completion?(); return }
         flushEngine.flush(completion: completion)
@@ -203,7 +208,12 @@ final class MonitoorCore {
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil, queue: nil
         ) { [weak self] _ in
-            self?.eventCapture.track("$app_background", properties: [:])
+            guard let self else { return }
+            // Attach session duration so the dashboard knows how long this foreground session lasted.
+            let duration = self.sessionManager.duration
+            self.eventCapture.track("$app_background", properties: [
+                "$session_duration_s": duration
+            ])
         }
     }
 }
