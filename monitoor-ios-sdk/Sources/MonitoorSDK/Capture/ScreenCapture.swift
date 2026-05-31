@@ -23,31 +23,29 @@ extension UIViewController {
 
         let cls = type(of: self)
 
-        // Only consider classes defined in the app's own bundle.
+        // Only consider classes compiled into the app bundle.
         guard Bundle(for: cls) == Bundle.main else { return }
 
-        // Use the Objective-C runtime name to check the module prefix.
-        // App-defined classes look like "AppName.MyViewController".
-        // SwiftUI-generated specialisations look like
-        // "AppName.(unknown context).(PresentationHostingController<...>)"
-        // or just "_UIKitNavigationController".
-        let runtimeName = NSStringFromClass(cls)
+        // String(describing:) gives the clean class name without module prefix or parentheses,
+        // unlike NSStringFromClass which wraps SwiftUI generics in "(unknown context at ...)".
+        let className = String(describing: cls)
 
-        // Exclude anything that looks like a generic specialisation:
-        // PresentationHosting<AnyView>, NavigationStackHosting<AnyView>, etc.
-        guard !runtimeName.contains("<") else { return }
+        // Drop anything with generic type parameters — every SwiftUI hosting controller
+        // uses generics: PresentationHostingController<AnyView>, etc.
+        guard !className.contains("<") else { return }
 
-        // Exclude internal names that start with an underscore.
-        let shortName = runtimeName.components(separatedBy: ".").last ?? runtimeName
-        guard !shortName.hasPrefix("_") else { return }
+        // Drop class names that contain known system/SwiftUI substrings.
+        let noiseSubstrings = ["Hosting", "UIKit", "SwiftUI", "Presentation",
+                               "Input", "Keyboard", "Remote", "Accessibility",
+                               "Window", "Scene", "Navigation", "Transition",
+                               "Gesture", "Popover", "Sheet"]
+        guard !noiseSubstrings.contains(where: { className.contains($0) }) else { return }
 
-        // Exclude SwiftUI-reserved prefixes: "UI...", "SwiftUI...", "Hosting...",
-        // "Presentation...", "Navigation..." when they originate from system internals.
-        let systemPrefixes = ["UI", "SwiftUI", "Hosting", "Presentation", "Navigation",
-                              "Input", "Keyboard", "Remote", "Alert", "Action"]
-        guard !systemPrefixes.contains(where: { shortName.hasPrefix($0) }) else { return }
+        // Drop classes whose names start with system-reserved prefixes.
+        let noisePrefixes = ["UI", "_", "NS", "AV", "MK", "SK", "AR", "CL"]
+        guard !noisePrefixes.contains(where: { className.hasPrefix($0) }) else { return }
 
-        let screenName = shortName
+        let screenName = className
             .replacingOccurrences(of: "ViewController", with: "")
             .replacingOccurrences(of: "Controller", with: "")
             .replacingOccurrences(of: "VC", with: "")
