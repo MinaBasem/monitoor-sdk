@@ -7,12 +7,12 @@ final class SessionManager {
     private let timeout: TimeInterval
     private let lock = NSLock()
 
-    // Accumulated foreground-only seconds from previous foreground periods
-    // within this session (background time is excluded).
+    // Foreground-only time accumulated from completed foreground periods.
     private var accumulatedForegroundTime: TimeInterval = 0
-
-    // When the app most recently entered the foreground for this session.
+    // When the current foreground period started (only valid while isInForeground = true).
     private var foregroundEnteredAt: Date = Date()
+    // Whether the app is currently in the foreground.
+    private var isInForeground: Bool = true
 
     init(timeout: TimeInterval = 30 * 60) {
         self.timeout = timeout
@@ -20,6 +20,7 @@ final class SessionManager {
         self.sessionStart = Date()
         self.lastEventAt = Date()
         self.foregroundEnteredAt = Date()
+        self.isInForeground = true
     }
 
     var currentSessionId: String {
@@ -31,11 +32,14 @@ final class SessionManager {
     }
 
     /// Active foreground time in seconds for this session.
-    /// Background time is excluded — this measures how long the user
-    /// actually had the app open on screen, not wall-clock time.
+    /// Only counts time the app was actually on screen — background time is excluded.
     var duration: TimeInterval {
         lock.withLock {
-            accumulatedForegroundTime + Date().timeIntervalSince(foregroundEnteredAt)
+            if isInForeground {
+                return accumulatedForegroundTime + Date().timeIntervalSince(foregroundEnteredAt)
+            } else {
+                return accumulatedForegroundTime
+            }
         }
     }
 
@@ -44,7 +48,7 @@ final class SessionManager {
         lock.withLock { lastEventAt = Date() }
     }
 
-    /// Called when the app enters the foreground.
+    /// Call when the app enters the foreground.
     /// Returns true if a new session was started due to inactivity.
     @discardableResult
     func handleForeground() -> Bool {
@@ -53,17 +57,19 @@ final class SessionManager {
                 startNewSession()
                 return true
             }
-            // Resume accumulating foreground time for the existing session.
             foregroundEnteredAt = Date()
+            isInForeground = true
             return false
         }
     }
 
-    /// Called when the app enters the background.
-    /// Freezes the foreground time accumulator until the next foreground.
+    /// Call when the app enters the background.
+    /// Freezes the foreground timer so background time is never counted.
     func handleBackground() {
         lock.withLock {
+            guard isInForeground else { return }
             accumulatedForegroundTime += Date().timeIntervalSince(foregroundEnteredAt)
+            isInForeground = false
         }
     }
 
@@ -80,5 +86,6 @@ final class SessionManager {
         lastEventAt = Date()
         accumulatedForegroundTime = 0
         foregroundEnteredAt = Date()
+        isInForeground = true
     }
 }
