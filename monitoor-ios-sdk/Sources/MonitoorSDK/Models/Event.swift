@@ -14,7 +14,7 @@ enum BufferRowType: String {
 }
 
 /// The JSON context block attached to every event.
-struct EventContext: Encodable {
+struct EventContext: Codable {
     let appVersion: String
     let build: String
     let os: String

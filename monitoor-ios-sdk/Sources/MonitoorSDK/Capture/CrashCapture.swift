@@ -108,8 +108,8 @@ final class CrashCapture {
         let reason        = exception?.reason ?? signalReason(signal)
 
         var crashFrames: [[String: String]] = []
-        for i in 0..<frameCount {
-            guard let ptr = frames[i] else { continue }
+        for i in 0..<Int(frameCount) {
+            guard let ptr = frames[Int(i)] else { continue }
             crashFrames.append([
                 "index":   "\(i)",
                 "address": "0x\(String(UInt(bitPattern: ptr), radix: 16))",
