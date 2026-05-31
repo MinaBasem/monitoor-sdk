@@ -104,7 +104,7 @@ final class MonitoorCore {
             revenueCapture.startObserving()
         }
 
-        if options.captureScreenViews {
+        if options.captureScreens {
             UIViewController.monitoor_installSwizzle()
         }
 
@@ -123,7 +123,7 @@ final class MonitoorCore {
     }
 
     func captureScreen(_ name: String, properties: [String: Any]) {
-        guard isConfigured, options.captureScreenViews else { return }
+        guard isConfigured, options.captureScreens else { return }
         var props = properties
         props["$screen_name"] = name
         eventCapture.enqueue(name: "$screen_view", type: "event", properties: props)

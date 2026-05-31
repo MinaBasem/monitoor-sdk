@@ -37,9 +37,12 @@ pod 'MonitoorSDK'
 
 ### 1. Get your API key
 
-Sign in at [monitoor.io](https://monitoor.io), open your app's settings, and copy the API key:
-- **Production:** starts with `mn_live_`
-- **Development:** starts with `mn_dev_`
+Sign up at [monitoor.io](https://monitoor.io) and create a project. Once inside, navigate to your project's **API Keys** section and generate a key.
+
+- **Production key** — prefix `mn_live_` — use in App Store / TestFlight builds
+- **Development key** — prefix `mn_dev_` — use in local development and the Simulator
+
+> **Coming soon:** API keys will also be creatable via the Monitoor CLI for teams that prefer a code-first or CI-driven workflow.
 
 ### 2. Initialize the SDK
 
@@ -55,10 +58,7 @@ struct MyApp: App {
     init() {
         Monitoor.configure(
             apiKey: "mn_live_YOUR_KEY_HERE",
-            options: MonitoorOptions(
-                ingestURL: URL(string: "https://ingest.monitoor.io")!,
-                environment: .production
-            )
+            options: MonitoorOptions(environment: .production)
         )
     }
 
@@ -98,25 +98,30 @@ All options have sensible defaults. Only override what you need.
 
 ```swift
 MonitoorOptions(
-    ingestURL: URL(string: "https://ingest.monitoor.io")!,
-
-    // .production or .development. Must match your API key prefix.
+    // Must match your API key prefix: mn_live_ → .production, mn_dev_ → .development
     environment: .production,
 
-    // Capture subsystems — all true by default except heatmaps and recordings.
+    // Capture subsystems — on by default except heatmaps and recordings.
     captureEvents: true,
-    captureScreenViews: true,   // UIKit: automatic. SwiftUI: use .monitoorScreen() modifier.
-    captureRevenue: true,       // StoreKit 2 transactions are captured automatically.
+    captureScreens: true,      // UIKit: automatic. SwiftUI: use .monitoorScreen() modifier.
+    captureRevenue: true,      // StoreKit 2 transactions captured automatically.
     captureCrashes: true,
 
-    captureClickHeatmaps: false,     // opt-in — privacy-sensitive
-    captureSessionRecordings: false, // opt-in — privacy-sensitive
+    captureHeatmaps: false,    // opt-in — privacy-sensitive
+    captureRecordings: false,  // opt-in — privacy-sensitive
 
-    // Performance tuning.
+    // Event sampling (mirrors the `mul` field on your API key record).
+    // 1.0 = send every event. 0.1 = send ~10% of events at random.
+    // System events ($app_open, $app_background, etc.) are never sampled out.
+    sampleRate: 1.0,
+
+    // How long to retain unsent events in the local buffer (mirrors the `retention` field).
+    retentionDays: 90,
+
+    // Flush tuning.
     flushInterval: 20,         // seconds between scheduled flushes
     flushBatchSize: 50,        // events per HTTP request
-    maxBufferAge: 72 * 3600,   // drop unsent events older than 72 hours
-    sessionTimeout: 30 * 60    // new session after 30 min of inactivity
+    sessionTimeout: 30 * 60   // new session after this many seconds of inactivity
 )
 ```
 
@@ -138,11 +143,11 @@ Monitoor.configure(
 
 ## Button Tracking
 
-The easiest way to count button presses. No need to add `Monitoor.track()` calls inside your action closures.
+The easiest way to count button presses — no need to add `Monitoor.track()` calls inside action closures.
 
 ### SwiftUI — `.monitoorTap()` modifier
 
-Apply to any tappable view. It fires alongside the button's own action.
+Attach to any tappable view. Fires alongside the button's own action.
 
 ```swift
 // Basic
@@ -191,7 +196,7 @@ You can also read the current elapsed session time at any point:
 let seconds = Monitoor.sessionDuration  // e.g. 142.7
 ```
 
-A new session starts when the app opens, or after 30 minutes of inactivity in the background (configurable via `sessionTimeout` in `MonitoorOptions`).
+A new session starts when the app opens, or after the `sessionTimeout` period of background inactivity (default: 30 minutes).
 
 ---
 
@@ -217,7 +222,7 @@ Monitoor.track("portfolio_created", properties: [
 
 ### Timed events
 
-Call `startTimer()` when an operation begins. The elapsed time is automatically attached as `$duration` (in seconds) when you call `track()` with the same name.
+Call `startTimer()` when an operation begins. The elapsed time is automatically attached as `$duration` (seconds) when you call `track()` with the same name.
 
 ```swift
 Monitoor.startTimer("onboarding_flow")
@@ -232,7 +237,7 @@ Monitoor.track("onboarding_flow")
 
 ## Screen Views
 
-> **Note:** Screen view tracking records only the *name* of the screen the user is on — it does not take screenshots, record video, or capture anything the user sees. The `captureSessionRecordings` option (separate, opt-in, currently not implemented) would be for actual screen recordings.
+> Screen view tracking records only the *name* of the screen — it does not take screenshots, record video, or capture any visual content. The `captureRecordings` option (opt-in, not yet implemented) is the separate feature for actual session recordings.
 
 ### UIKit (automatic)
 
@@ -261,8 +266,6 @@ With properties:
 
 ### Manual
 
-Call this directly if you need full control over the name:
-
 ```swift
 Monitoor.screen("Custom Screen Name")
 ```
@@ -273,15 +276,13 @@ Monitoor.screen("Custom Screen Name")
 
 ### Identify a user
 
-The SDK is anonymous by default. Call `identify()` after the user signs in. The user ID is SHA-256 hashed on-device before transmission — Monitoor never receives the plaintext ID.
+The SDK is anonymous by default. Call `identify()` after sign-in. The user ID is SHA-256 hashed on-device before transmission — Monitoor never receives the plaintext ID.
 
 ```swift
 Monitoor.identify(userId: currentUser.id)
 ```
 
 ### Attach user properties
-
-Attach non-PII attributes that persist across events for this user.
 
 ```swift
 Monitoor.setUserProperties([
@@ -351,11 +352,9 @@ Automate this in your CI pipeline.
 
 ## How the SDK Works Internally
 
-Understanding this helps debug issues and evaluate privacy impact.
-
 ### Local buffer
 
-Every event is written synchronously to a SQLite database (`Library/monitoor_buffer.db`) before `track()` returns. This guarantees no events are lost regardless of network state, app kills, or crashes.
+Every event is written synchronously to a SQLite database (`Library/monitoor_buffer.db`) before `track()` returns. This guarantees no events are lost regardless of network state, app kills, or crashes. Events older than `retentionDays` are pruned automatically.
 
 ### Flush engine
 
@@ -364,7 +363,7 @@ Events are batched and streamed to the ingest service over HTTPS. The engine dra
 | Trigger | When |
 |---|---|
 | Batch full | `flushBatchSize` events accumulated |
-| App background | `UIScene.willDeactivateNotification` |
+| App background | `UIApplication.didEnterBackgroundNotification` |
 | App terminate | `UIApplication.willTerminateNotification` |
 | Timer | Every `flushInterval` seconds |
 | Network restored | `NWPathMonitor` path becomes `.satisfied` |
@@ -374,13 +373,17 @@ Events are batched and streamed to the ingest service over HTTPS. The engine dra
 | HTTP response | Action |
 |---|---|
 | `2xx` | Events deleted from buffer |
-| `4xx` (client error) | Events marked as permanently failed (not retried) |
+| `4xx` client error | Events marked permanently failed, not retried |
 | `429` Too Many Requests | Back off for `Retry-After` seconds, retry later |
 | `5xx` / network error | Exponential back-off (1s, 2s, 4s … max 5 min), retry |
 
 ### Idempotency
 
 Every event carries an `idempotency_key` (`device_id + session_id + timestamp`). The ingest service uses `ON CONFLICT DO NOTHING`, so retried batches never produce duplicate rows.
+
+### Event sampling
+
+When `sampleRate < 1.0`, the SDK randomly discards developer events before they reach the buffer — reducing both data volume and storage usage. System events (those starting with `$`) are always sent regardless of `sampleRate`. The ingest service uses the same multiplier (`mul` on the API key record) for statistical weighting when computing aggregates.
 
 ---
 
@@ -391,7 +394,7 @@ Every event carries an `idempotency_key` (`device_id + session_id + timestamp`).
 | Device ID | Yes | UUID in Keychain — not linked to Apple ID, IDFA, or any real identity |
 | IP address | No | Resolved to country server-side, then immediately discarded |
 | User ID | Optional | SHA-256 hashed on-device before transmission |
-| Screen recordings | No (default) | Opt-in via `captureSessionRecordings: true` |
+| Screen recordings | No (default) | Opt-in via `captureRecordings: true` — not yet implemented |
 | Keystrokes / clipboard | Never | — |
 | Precise location | Never | — |
 | IDFA / IDFV | Never | No ATT prompt required |
@@ -403,14 +406,17 @@ The SDK requires **no `NSPrivacyAccessedAPITypes`** entries in `PrivacyInfo.xcpr
 
 ## FAQ
 
+**How do I get an API key?**
+Sign up at [monitoor.io](https://monitoor.io) and generate a key from your project's API Keys section. A CLI-based key creation flow is planned for future releases.
+
 **Does the SDK connect to my database directly?**
 No. It only sends HTTPS requests to the ingest service. Database credentials never leave your server.
 
 **What happens when the user is offline?**
-Events are buffered in SQLite indefinitely (up to `maxBufferAge`, default 72 hours). Once connectivity is restored, the buffer drains automatically.
+Events are buffered in SQLite for up to `retentionDays` days (default: 90). Once connectivity is restored, the buffer drains automatically.
 
 **Can I use the SDK in a SwiftUI preview?**
-Yes, but call `Monitoor.configure()` conditionally:
+Yes, but guard the configure call:
 ```swift
 if !ProcessInfo.processInfo.environment.keys.contains("XCODE_RUNNING_FOR_PREVIEWS") {
     Monitoor.configure(apiKey: "mn_dev_...")
@@ -420,11 +426,8 @@ if !ProcessInfo.processInfo.environment.keys.contains("XCODE_RUNNING_FOR_PREVIEW
 **Can I call `Monitoor.configure()` more than once?**
 No. Only the first call takes effect. Subsequent calls are silently ignored.
 
-**How do I verify events are reaching the ingest service during development?**
-Check the Monitoor development dashboard, or query your local PostgreSQL directly:
-```sql
-SELECT name, occurred_at, properties FROM events ORDER BY occurred_at DESC LIMIT 20;
-```
+**How do I verify events are arriving during development?**
+Check the Monitoor development dashboard. In DEBUG builds, the SDK also prints `[Monitoor]` log lines to the console.
 
 ---
 
@@ -433,7 +436,8 @@ SELECT name, occurred_at, properties FROM events ORDER BY occurred_at DESC LIMIT
 | Symptom | Check |
 |---|---|
 | No events in dashboard | Verify `apiKey` prefix matches `environment`. Check `[Monitoor]` console logs in DEBUG builds. |
-| Events appear but are delayed | Default flush interval is 20s. Call `Monitoor.flush()` for immediate delivery. |
+| Fewer events than expected | Check `sampleRate` — if set below `1.0`, events are intentionally dropped client-side. |
+| Events appear but are delayed | Default flush interval is 20 s. Call `Monitoor.flush()` for immediate delivery. |
 | Crash reports not appearing | Verify `captureCrashes: true`. Crashes upload on the **next** launch, not the crashing one. |
 | `mn_live_` key rejected | Ensure `environment: .production` in `MonitoorOptions`. |
 | High data usage | Reduce `flushBatchSize` or increase `flushInterval`. Events are gzip-compressed above 1 KB. |

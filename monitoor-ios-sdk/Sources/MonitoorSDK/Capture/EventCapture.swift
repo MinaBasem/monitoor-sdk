@@ -48,6 +48,11 @@ final class EventCapture {
     // MARK: - Internal helpers
 
     func enqueue(name: String, type: String, properties: [String: Any]) {
+        // Apply client-side sampling. System lifecycle events ($ prefix) are never sampled out.
+        if !name.hasPrefix("$"), options.sampleRate < 1.0 {
+            guard Double.random(in: 0..<1) < options.sampleRate else { return }
+        }
+
         sessionManager.recordActivity()
 
         let occurredAt = ISO8601DateFormatter.monitoor.string(from: Date())
