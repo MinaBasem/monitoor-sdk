@@ -22,19 +22,35 @@ import urllib.error
 import gzip
 import socketserver
 from datetime import datetime, timezone
+from pathlib import Path
+
+# ── Load .env file automatically (no `source` needed) ─────────────────────────
+
+def _load_env():
+    env_path = Path(__file__).parent / ".env"
+    if not env_path.exists():
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            # Only set if not already set by the shell environment
+            os.environ.setdefault(key.strip(), value.strip())
+
+_load_env()
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-PORT = int(os.environ.get("PORT", "8080"))
-
+PORT      = int(os.environ.get("PORT", "8080"))
 NEON_URL  = os.environ.get("NEON_URL")
 NEON_CONN = os.environ.get("NEON_CONNECTION_STR")
 
 if not NEON_URL or not NEON_CONN:
     raise RuntimeError(
-        "Missing required environment variables.\n"
-        "Copy .env.example to .env and fill in your Neon credentials,\n"
-        "then run: source .env && python3 server.py"
+        "NEON_URL and NEON_CONNECTION_STR are not set.\n"
+        "Make sure ingest-server/.env exists and contains both values."
     )
 
 MAX_BATCH_SIZE = 200
@@ -279,10 +295,13 @@ class IngestHandler(http.server.BaseHTTPRequestHandler):
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    """Handles each request in its own thread so concurrent flushes don't block each other."""
+    daemon_threads = True
+
 if __name__ == "__main__":
-    # Allow port reuse so quick restarts don't hit "address already in use"
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), IngestHandler) as httpd:
+    ThreadedTCPServer.allow_reuse_address = True
+    with ThreadedTCPServer(("", PORT), IngestHandler) as httpd:
         print(f"Monitoor ingest service running on port {PORT}")
         print(f"  POST http://localhost:{PORT}/v1/ingest")
         print(f"  GET  http://localhost:{PORT}/health")
