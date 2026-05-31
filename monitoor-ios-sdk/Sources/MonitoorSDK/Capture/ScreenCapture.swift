@@ -21,15 +21,38 @@ extension UIViewController {
     @objc func monitoor_viewDidAppear(_ animated: Bool) {
         monitoor_viewDidAppear(animated) // calls original implementation due to swizzle
 
-        // Only track view controllers defined in the app's own bundle.
-        // This filters out every internal Apple/SwiftUI class (UIKitNavigationController,
-        // _UIHostingController, etc.) without needing an explicit exclusion list.
-        guard Bundle(for: type(of: self)) == Bundle.main else { return }
+        let cls = type(of: self)
 
-        let screenName = String(describing: type(of: self))
+        // Only consider classes defined in the app's own bundle.
+        guard Bundle(for: cls) == Bundle.main else { return }
+
+        // Use the Objective-C runtime name to check the module prefix.
+        // App-defined classes look like "AppName.MyViewController".
+        // SwiftUI-generated specialisations look like
+        // "AppName.(unknown context).(PresentationHostingController<...>)"
+        // or just "_UIKitNavigationController".
+        let runtimeName = NSStringFromClass(cls)
+
+        // Exclude anything that looks like a generic specialisation:
+        // PresentationHosting<AnyView>, NavigationStackHosting<AnyView>, etc.
+        guard !runtimeName.contains("<") else { return }
+
+        // Exclude internal names that start with an underscore.
+        let shortName = runtimeName.components(separatedBy: ".").last ?? runtimeName
+        guard !shortName.hasPrefix("_") else { return }
+
+        // Exclude SwiftUI-reserved prefixes: "UI...", "SwiftUI...", "Hosting...",
+        // "Presentation...", "Navigation..." when they originate from system internals.
+        let systemPrefixes = ["UI", "SwiftUI", "Hosting", "Presentation", "Navigation",
+                              "Input", "Keyboard", "Remote", "Alert", "Action"]
+        guard !systemPrefixes.contains(where: { shortName.hasPrefix($0) }) else { return }
+
+        let screenName = shortName
             .replacingOccurrences(of: "ViewController", with: "")
             .replacingOccurrences(of: "Controller", with: "")
             .replacingOccurrences(of: "VC", with: "")
+
+        guard !screenName.isEmpty else { return }
 
         MonitoorCore.shared?.captureScreen(screenName, properties: [:])
     }
