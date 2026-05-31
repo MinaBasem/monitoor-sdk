@@ -27,14 +27,15 @@ from datetime import datetime, timezone
 
 PORT = int(os.environ.get("PORT", "8080"))
 
-NEON_URL = os.environ.get(
-    "NEON_URL",
-    "https://ep-shiny-hat-al5rb3wf-pooler.c-3.eu-central-1.aws.neon.tech/sql"
-)
-NEON_CONN = os.environ.get(
-    "NEON_CONNECTION_STR",
-    "postgresql://neondb_owner:npg_2lOaxyqnir1E@ep-shiny-hat-al5rb3wf-pooler.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require"
-)
+NEON_URL  = os.environ.get("NEON_URL")
+NEON_CONN = os.environ.get("NEON_CONNECTION_STR")
+
+if not NEON_URL or not NEON_CONN:
+    raise RuntimeError(
+        "Missing required environment variables.\n"
+        "Copy .env.example to .env and fill in your Neon credentials,\n"
+        "then run: source .env && python3 server.py"
+    )
 
 MAX_BATCH_SIZE = 200
 MAX_FUTURE_SECONDS = 300   # reject events > 5 min in the future

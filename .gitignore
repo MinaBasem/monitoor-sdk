@@ -18,10 +18,11 @@ monitoor-ingest/server
 monitoor-ingest/ingest
 *.test
 
-# Environment
+# Environment — never commit real credentials
 .env
 .env.local
 .env.*.local
+ingest-server/.env
 
 # Editor
 .idea/
