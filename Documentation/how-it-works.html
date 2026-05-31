@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How It Works — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item active" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> How It Works</div>
+  <div class="page-eyebrow">Internals</div>
+  <h1 class="page-title">How It Works</h1>
+  <p class="page-lead">Understanding the SDK's internals helps you debug integration issues, reason about performance, and evaluate its privacy guarantees.</p>
+
+  <h2>The full pipeline</h2>
+  <pre><code>User action (button tap, screen view, etc.)
+        ↓  synchronous write — always succeeds
+SQLite buffer  (Library/monitoor_buffer.db)
+        ↓  HTTP POST, batched
+Ingest service  (server.py on your server)
+        ↓  Neon HTTP SQL API
+PostgreSQL Event table  (Neon)
+</code></pre>
+
+  <h2>Stage 1 — Local buffer</h2>
+  <p>Every event is written to a SQLite database on the device <strong>before <code>track()</code> returns</strong>. This write happens synchronously on a dedicated serial queue and never blocks the main thread for more than a few microseconds.</p>
+
+  <p>The SQLite database is configured with:</p>
+  <ul>
+    <li><strong>WAL mode</strong> — writes are crash-safe. A power loss mid-write does not corrupt the database.</li>
+    <li><strong>NORMAL sync</strong> — fast writes without full fsync on every row.</li>
+    <li><strong>iCloud backup excluded</strong> — the buffer is not backed up to iCloud.</li>
+  </ul>
+
+  <p>Events in the buffer have one of two statuses:</p>
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td><code>pending</code></td><td>Waiting to be sent. Will be retried indefinitely until <code>retentionDays</code> expires.</td></tr>
+    <tr><td><code>failed</code></td><td>Permanently rejected by the server (HTTP 4xx). Will not be retried.</td></tr>
+  </table>
+
+  <h2>Stage 2 — Flush engine</h2>
+  <p>The flush engine drains the buffer by sending events to the ingest service in batches. It is triggered by five conditions simultaneously:</p>
+
+  <table>
+    <tr><th>Trigger</th><th>When it fires</th></tr>
+    <tr><td>Timer</td><td>Every <code>flushInterval</code> seconds (default: 20s)</td></tr>
+    <tr><td>Batch full</td><td>When buffer reaches <code>flushBatchSize</code> events (default: 50)</td></tr>
+    <tr><td>App backgrounds</td><td><code>UIApplication.didEnterBackgroundNotification</code> — a background task keeps the process alive to finish</td></tr>
+    <tr><td>App terminates</td><td><code>UIApplication.willTerminateNotification</code> — synchronous flush with 3-second deadline</td></tr>
+    <tr><td>Network restored</td><td><code>NWPathMonitor</code> path becomes <code>.satisfied</code></td></tr>
+  </table>
+
+  <h3>Drain loop</h3>
+  <p>A flush does not send just one batch. It continuously sends batches of <code>flushBatchSize</code> events until the buffer is empty:</p>
+  <pre><code>flush triggered
+  dequeue 50 events
+  POST /v1/ingest → 2xx
+  delete 50 rows from buffer
+  dequeue next 50 events
+  POST /v1/ingest → 2xx
+  delete 50 rows
+  dequeue → 0 rows
+  stop
+</code></pre>
+
+  <p>This means if a device was offline for days and accumulated thousands of events, a single flush trigger will drain all of them as fast as the network allows.</p>
+
+  <h2>Stage 3 — Retry behaviour</h2>
+  <p>When a flush fails, the SDK responds based on the HTTP status code:</p>
+
+  <table>
+    <tr><th>Response</th><th>Action</th></tr>
+    <tr><td><code>2xx</code></td><td>Events deleted from buffer. Fetch next batch immediately.</td></tr>
+    <tr><td><code>4xx</code> (client error)</td><td>Events marked <code>failed</code> permanently. Not retried — the server has rejected them definitively.</td></tr>
+    <tr><td><code>429</code> Too Many Requests</td><td>Back off for the duration specified in the <code>Retry-After</code> header (defaults to 60s). Events remain <code>pending</code>.</td></tr>
+    <tr><td><code>5xx</code> or network error</td><td>Exponential back-off: 1s → 2s → 4s → 8s → … max 300s. Events remain <code>pending</code>.</td></tr>
+  </table>
+
+  <h2>Idempotency</h2>
+  <p>Every event carries an <code>idempotency_key</code> formed from:</p>
+  <pre><code>{device_id} + {session_id} + {occurred_at_ms}</code></pre>
+
+  <p>The ingest service inserts with:</p>
+  <pre><code><span class="kw">ON CONFLICT</span> (<span class="str">"idempotencyKey"</span>) <span class="kw">DO NOTHING</span>
+</code></pre>
+
+  <p>If the network drops after the server writes the events but before it returns <code>200</code>, the SDK retries the same batch. The duplicate events silently no-op — the database always ends up with exactly one copy of each event.</p>
+
+  <h2>Wire format</h2>
+  <p>Each flush sends a single HTTP request:</p>
+  <pre><code>POST {ingestURL}/v1/ingest
+Authorization: Bearer mn_live_your_key
+Content-Type: application/json
+Content-Encoding: gzip  (when payload > 1 KB)
+X-Monitoor-SDK-Version: 1.0.0
+
+{
+  "sdk_version": "1.0.0",
+  "batch": [
+    {
+      "type": "event",
+      "name": "play_pause_tapped",
+      "session_id": "uuid",
+      "device_id": "uuid",
+      "user_id_hash": "sha256hex | null",
+      "idempotency_key": "device_id-session_id-timestamp",
+      "occurred_at": "2026-05-31T12:00:00.000Z",
+      "properties": { "source": "mini_player" },
+      "context": {
+        "app_version": "1.0",
+        "build": "1",
+        "os": "iOS 18.0",
+        "device": "iPhone 16 Pro",
+        "locale": "en_US",
+        "timezone": "Europe/London",
+        "bundle_id": "com.example.app"
+      }
+    }
+  ]
+}
+</code></pre>
+
+  <p>The server responds with a partial-acceptance response:</p>
+  <pre><code>{
+  "accepted": 49,
+  "rejected": 1,
+  "errors": [
+    { "index": 12, "reason": "occurred_at is in the future" }
+  ]
+}
+</code></pre>
+
+  <p>Valid events are stored even if some in the batch are rejected.</p>
+
+  <h2>Clock skew protection</h2>
+  <p>The ingest server rejects events where:</p>
+  <ul>
+    <li><code>occurred_at</code> is more than <strong>5 minutes in the future</strong> (device clock ahead of server)</li>
+    <li><code>occurred_at</code> is more than <strong>7 days in the past</strong> (stale events beyond the retention window)</li>
+  </ul>
+
+  <p>The server's <code>received_at</code> timestamp is always accurate regardless of device clock issues.</p>
+
+  <hr class="divider">
+  <p>Next: <a href="privacy.html">Privacy →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>

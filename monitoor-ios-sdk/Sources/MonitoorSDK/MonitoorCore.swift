@@ -209,10 +209,10 @@ final class MonitoorCore {
             object: nil, queue: nil
         ) { [weak self] _ in
             guard let self else { return }
-            // Attach session duration so the dashboard knows how long this foreground session lasted.
-            let duration = self.sessionManager.duration
+            // Freeze the foreground timer first, then read the accurate duration.
+            self.sessionManager.handleBackground()
             self.eventCapture.track("$app_background", properties: [
-                "$session_duration_s": duration
+                "$session_duration_s": self.sessionManager.duration
             ])
         }
     }

@@ -166,8 +166,6 @@ def handle_ingest(bearer_token, body_bytes):
 
     environment = api_key.get("env", "development")
     api_key_id  = api_key["id"]
-    app_name    = api_key.get("appName")
-    bundle_id   = api_key.get("bundleId")
 
     # Validate and insert events
     accepted = 0
@@ -191,22 +189,20 @@ def handle_ingest(bearer_token, body_bytes):
             neon_query(
                 '''
                 INSERT INTO "Event" (
-                    "apiKeyId", "appName", "bundleId", name, properties,
+                    "apiKeyId", name, properties,
                     "sessionId", "deviceId", "userIdHash", "idempotencyKey",
                     "appVersion", "osVersion", "deviceModel",
                     environment, "occurredAt"
                 ) VALUES (
-                    $1, $2, $3, $4, $5,
-                    $6, $7, $8, $9,
-                    $10, $11, $12,
-                    $13, $14
+                    $1, $2, $3,
+                    $4, $5, $6, $7,
+                    $8, $9, $10,
+                    $11, $12
                 )
                 ON CONFLICT ("idempotencyKey") DO NOTHING
                 ''',
                 [
                     api_key_id,
-                    app_name or ctx.get("bundle_id"),
-                    bundle_id or ctx.get("bundle_id"),
                     event["name"],
                     json.dumps(properties) if properties else None,
                     event.get("session_id"),

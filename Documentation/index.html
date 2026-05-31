@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MonitoorSDK — Documentation</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .tracker-section {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin: 28px 0;
+    overflow: hidden;
+  }
+  .tracker-header {
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .tracker-icon {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .tracker-title {
+    font-size: 15px;
+    font-weight: 650;
+    color: var(--fg);
+    letter-spacing: -0.2px;
+  }
+  .tracker-subtitle {
+    font-size: 12.5px;
+    color: var(--fg-3);
+    margin-top: 2px;
+  }
+  .tracker-badge {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .badge-auto   { background: rgba(86,211,100,0.12); color: #56d364; border: 1px solid rgba(86,211,100,0.3); }
+  .badge-manual { background: rgba(124,106,249,0.12); color: #a78bfa; border: 1px solid rgba(124,106,249,0.3); }
+  .badge-both   { background: rgba(227,179,65,0.12); color: #e3b341; border: 1px solid rgba(227,179,65,0.3); }
+  .tracker-body { padding: 20px 22px 4px; }
+  .tracker-body pre { margin-top: 12px; }
+  .tracker-body p { font-size: 13.5px; }
+
+  .step-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 16px 0 24px;
+  }
+  @media (max-width: 700px) { .step-grid { grid-template-columns: 1fr; } }
+
+  .step-card {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+  }
+  .step-num {
+    width: 24px; height: 24px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-content strong { display: block; font-size: 13px; color: var(--fg); margin-bottom: 3px; }
+  .step-content span { font-size: 12px; color: var(--fg-3); line-height: 1.5; }
+
+  .key-warning {
+    background: linear-gradient(135deg, rgba(255,123,114,0.08) 0%, rgba(227,179,65,0.08) 100%);
+    border: 1px solid rgba(255,123,114,0.35);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    margin: 24px 0;
+  }
+  .key-warning-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ff7b72;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .key-warning p { font-size: 13.5px; color: var(--fg-2); margin-bottom: 10px; }
+  .key-warning p:last-child { margin-bottom: 0; }
+  .key-warning code { font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html">
+    <div class="logo-mark">M</div>
+    <div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div>
+  </a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item active" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+
+<main class="main">
+<div class="content">
+
+  <div class="page-eyebrow">MonitoorSDK for iOS</div>
+  <h1 class="page-title">Understand your users.<br>One line at a time.</h1>
+  <p class="page-lead">MonitoorSDK is a lightweight, privacy-first analytics SDK for iOS. Drop it into any SwiftUI or UIKit app and start collecting events, button presses, screen views, revenue, and crashes — with no third-party dependencies and zero configuration.</p>
+
+  <!-- ── Features ──────────────────────────────────────────────────────────── -->
+  <h2>What the SDK does</h2>
+  <p>Every event is written to a local SQLite buffer on the device first, so nothing is ever lost — even when the device is offline. Events are then streamed to your Monitoor dashboard over HTTPS in batches.</p>
+
+  <div class="card-grid">
+    <a class="card" href="events.html"><div class="card-icon">📡</div><div class="card-title">Event Tracking</div><div class="card-desc">Track any named action with typed properties.</div></a>
+    <a class="card" href="buttons.html"><div class="card-icon">👆</div><div class="card-title">Button Presses</div><div class="card-desc">One modifier. Every tap counted automatically.</div></a>
+    <a class="card" href="screens.html"><div class="card-icon">📱</div><div class="card-title">Screen Views</div><div class="card-desc">UIKit: automatic. SwiftUI: one modifier.</div></a>
+    <a class="card" href="sessions.html"><div class="card-icon">⏱️</div><div class="card-title">Session Duration</div><div class="card-desc">How long users spend in your app per session.</div></a>
+    <a class="card" href="revenue.html"><div class="card-icon">💰</div><div class="card-title">Revenue</div><div class="card-desc">StoreKit 2 auto-capture. Manual for StoreKit 1.</div></a>
+    <a class="card" href="crashes.html"><div class="card-icon">💥</div><div class="card-title">Crash Reporting</div><div class="card-desc">Signal-level handlers. Reports on next launch.</div></a>
+  </div>
+
+  <!-- ── Quick start ────────────────────────────────────────────────────────── -->
+  <h2>Quick start</h2>
+
+  <div class="step-grid">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <strong>Add the package in Xcode</strong>
+        <span>File → Add Package Dependencies… → paste the repo URL → Add Package</span>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <strong>Get your API key</strong>
+        <span>Sign up at monitoor.io → create a project → API Keys → Generate</span>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <strong>Store the key safely</strong>
+        <span>Put it in a <code>.env</code> file — never hard-code it directly in source. See the warning below.</span>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <strong>Call configure() once</strong>
+        <span>In <code>App.init()</code> or <code>AppDelegate</code>, before any view appears.</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Step 1 — Add the Swift Package</h3>
+  <p>In Xcode: <strong>File → Add Package Dependencies…</strong> Paste into the search bar at the top-right:</p>
+  <pre><code>https://github.com/MinaBasem/monitoor-ios-sdk</code></pre>
+  <p>Set the rule to <strong>Up to Next Major Version</strong> from <code>1.0.0</code>. Click <strong>Add Package</strong>, tick your app target, click <strong>Add Package</strong>.</p>
+
+  <h3>Step 2 — Get your API key</h3>
+  <p>Sign up at <strong>monitoor.io</strong>, open your project, and navigate to <strong>API Keys</strong>. Generate one key for each environment:</p>
+  <table>
+    <tr><th>Prefix</th><th>Environment</th><th>Use for</th></tr>
+    <tr><td><code>mn_live_</code></td><td><code>.production</code></td><td>App Store, TestFlight</td></tr>
+    <tr><td><code>mn_dev_</code></td><td><code>.development</code></td><td>Local dev, Simulator, your device</td></tr>
+  </table>
+
+  <h3>Step 3 — Store the key safely</h3>
+
+  <div class="key-warning">
+    <div class="key-warning-title">🚨 Do NOT commit your API key to git</div>
+    <p>Your API key is a secret. Putting it directly in a Swift file and pushing it to GitHub means every visitor to your repo — including bots that scrape public repos for secrets every few minutes — can see it and send fake events to your dashboard. Don't do it.</p>
+    <p>Store it in a <code>.env</code> file at the root of your project, then make sure <code>.env</code> is in your <code>.gitignore</code>. Your future self will thank you. So will your data. 🙏</p>
+    <pre style="margin:10px 0 0"><code><span class="cm"># .env  (never committed)</span>
+MONITOOR_API_KEY=mn_dev_your_key_here</code></pre>
+    <pre style="margin:8px 0 0"><code><span class="cm"># .gitignore  (this line saves careers)</span>
+.env
+.env.local
+.env.*.local</code></pre>
+    <p style="margin-top:12px">In Xcode, add it as a build environment variable (<strong>Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables</strong>), then read it in Swift:</p>
+    <pre style="margin:8px 0 0"><code><span class="kw">let</span> apiKey = <span class="tp">ProcessInfo</span>.processInfo.environment[<span class="str">"MONITOOR_API_KEY"</span>] ?? <span class="str">""</span></code></pre>
+  </div>
+
+  <h3>Step 4 — Configure in your app entry point</h3>
+  <p>Call <code>Monitoor.configure()</code> <strong>once</strong>, before any view appears. Calling it a second time is silently ignored.</p>
+
+  <h4>SwiftUI</h4>
+  <pre><code><span class="kw">import</span> <span class="tp">SwiftUI</span>
+<span class="kw">import</span> <span class="tp">MonitoorSDK</span>
+
+<span class="kw">@main</span>
+<span class="kw">struct</span> <span class="tp">MyApp</span>: <span class="tp">App</span> {
+
+    <span class="kw">init</span>() {
+        <span class="kw">let</span> apiKey = <span class="tp">ProcessInfo</span>.processInfo.environment[<span class="str">"MONITOOR_API_KEY"</span>] ?? <span class="str">""</span>
+
+        <span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+            <span class="pm">apiKey</span>: apiKey,
+            <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(
+                <span class="pm">environment</span>: .development  <span class="cm">// change to .production for release</span>
+            )
+        )
+    }
+
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="tp">Scene</span> {
+        <span class="tp">WindowGroup</span> { <span class="tp">ContentView</span>() }
+    }
+}
+</code></pre>
+
+  <h4>UIKit — AppDelegate</h4>
+  <pre><code><span class="kw">import</span> <span class="tp">UIKit</span>
+<span class="kw">import</span> <span class="tp">MonitoorSDK</span>
+
+<span class="kw">@UIApplicationMain</span>
+<span class="kw">class</span> <span class="tp">AppDelegate</span>: <span class="tp">UIResponder</span>, <span class="tp">UIApplicationDelegate</span> {
+
+    <span class="kw">func</span> <span class="fn">application</span>(
+        <span class="pm">_</span> application: <span class="tp">UIApplication</span>,
+        <span class="pm">didFinishLaunchingWithOptions</span> launchOptions: [<span class="tp">UIApplication.LaunchOptionsKey</span>: <span class="tp">Any</span>]?
+    ) -> <span class="tp">Bool</span> {
+
+        <span class="kw">let</span> apiKey = <span class="tp">ProcessInfo</span>.processInfo.environment[<span class="str">"MONITOOR_API_KEY"</span>] ?? <span class="str">""</span>
+        <span class="tp">Monitoor</span>.<span class="fn">configure</span>(<span class="pm">apiKey</span>: apiKey, <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(<span class="pm">environment</span>: .development))
+        <span class="kw">return</span> <span class="nm">true</span>
+    }
+}
+</code></pre>
+
+  <h3>Step 5 — Verify it's working</h3>
+  <p>Build and run. The SDK immediately sends a <code>$app_open</code> event. Within 20 seconds it appears in your Monitoor dashboard. In DEBUG builds, look for <code>[Monitoor]</code> lines in the Xcode console.</p>
+
+  <div class="callout callout-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">To force an immediate flush during testing instead of waiting 20 seconds: <code>Monitoor.flush()</code></div>
+  </div>
+
+
+  <!-- ── Tracking examples ─────────────────────────────────────────────────── -->
+  <h2>Tracking examples</h2>
+  <p>Every tracker below is independent — add as many or as few as you need. All examples use a music player app to keep the context consistent.</p>
+
+  <!-- Button presses -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">👆</div>
+      <div>
+        <div class="tracker-title">Button presses</div>
+        <div class="tracker-subtitle">SwiftUI: <code>.monitoorTap()</code> modifier &nbsp;·&nbsp; UIKit: <code>MonitoorButton</code> or <code>.monitoor_trackTaps()</code></div>
+      </div>
+      <span class="tracker-badge badge-manual">Manual</span>
+    </div>
+    <div class="tracker-body">
+      <p>Attach <code>.monitoorTap()</code> to any SwiftUI button or tappable view. It fires a <code>simultaneousGesture</code> alongside the button's own action — your existing code is not touched.</p>
+      <pre><code><span class="cm">// ── SwiftUI ───────────────────────────────────────────────────────────</span>
+
+<span class="cm">// Basic button</span>
+<span class="tp">Button</span>(<span class="str">"Play"</span>) { player.<span class="fn">play</span>() }
+    .<span class="fn">monitoorTap</span>(<span class="str">"play_tapped"</span>)
+
+<span class="cm">// Button with context properties</span>
+<span class="tp">Button</span>(<span class="str">"Add to Playlist"</span>) { <span class="fn">addToPlaylist</span>(track) }
+    .<span class="fn">monitoorTap</span>(<span class="str">"add_to_playlist_tapped"</span>, <span class="pm">properties</span>: [
+        <span class="str">"track"</span>: track.title,
+        <span class="str">"artist"</span>: track.artist
+    ])
+
+<span class="cm">// Dynamic event name based on state</span>
+<span class="tp">Button</span> { player.<span class="fn">toggleLike</span>(track) } <span class="pm">label</span>: {
+    <span class="tp">Image</span>(<span class="pm">systemName</span>: liked ? <span class="str">"heart.fill"</span> : <span class="str">"heart"</span>)
+}
+.<span class="fn">monitoorTap</span>(liked ? <span class="str">"track_unliked"</span> : <span class="str">"track_liked"</span>)
+
+<span class="cm">// On a tappable card, not a Button</span>
+<span class="tp">NowPlayingCard</span>(track: currentTrack)
+    .<span class="fn">onTapGesture</span> { showNowPlaying = <span class="nm">true</span> }
+    .<span class="fn">monitoorTap</span>(<span class="str">"now_playing_opened"</span>, <span class="pm">properties</span>: [<span class="str">"source"</span>: <span class="str">"mini_player"</span>])
+
+<span class="cm">// Inside a ForEach list</span>
+<span class="tp">ForEach</span>(playlists) { playlist <span class="kw">in</span>
+    <span class="tp">Button</span> { <span class="fn">play</span>(playlist) } <span class="pm">label</span>: { <span class="tp">PlaylistRow</span>(playlist: playlist) }
+        .<span class="fn">monitoorTap</span>(<span class="str">"playlist_played"</span>, <span class="pm">properties</span>: [<span class="str">"name"</span>: playlist.name])
+}
+
+<span class="cm">// ── UIKit ─────────────────────────────────────────────────────────────</span>
+
+<span class="cm">// Subclass for new buttons</span>
+<span class="kw">let</span> shuffleBtn = <span class="tp">MonitoorButton</span>(<span class="pm">eventName</span>: <span class="str">"shuffle_tapped"</span>)
+<span class="kw">let</span> buyBtn     = <span class="tp">MonitoorButton</span>(<span class="pm">eventName</span>: <span class="str">"buy_tapped"</span>, <span class="pm">properties</span>: [<span class="str">"plan"</span>: <span class="str">"annual"</span>])
+
+<span class="cm">// Extension for existing buttons you can't subclass</span>
+<span class="kw">override func</span> <span class="fn">viewDidLoad</span>() {
+    <span class="kw">super</span>.<span class="fn">viewDidLoad</span>()
+    signInButton.<span class="fn">monitoor_trackTaps</span>(<span class="pm">eventName</span>: <span class="str">"sign_in_tapped"</span>)
+    shareButton.<span class="fn">monitoor_trackTaps</span>(<span class="pm">eventName</span>: <span class="str">"share_tapped"</span>, <span class="pm">properties</span>: [<span class="str">"screen"</span>: <span class="str">"profile"</span>])
+}
+</code></pre>
+    </div>
+  </div>
+
+  <!-- Screen views -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">📱</div>
+      <div>
+        <div class="tracker-title">Screen views</div>
+        <div class="tracker-subtitle">UIKit: automatic via swizzle &nbsp;·&nbsp; SwiftUI: <code>.monitoorScreen()</code> modifier</div>
+      </div>
+      <span class="tracker-badge badge-both">Auto + Manual</span>
+    </div>
+    <div class="tracker-body">
+      <p>UIKit view controllers are tracked automatically — no code needed. For SwiftUI, attach <code>.monitoorScreen()</code> to each screen-level view. This only records the screen's <em>name</em> as a string — no screenshots, no recordings.</p>
+      <pre><code><span class="cm">// ── UIKit — zero code required ─────────────────────────────────────────</span>
+<span class="cm">// LibraryViewController  → tracked as "Library"</span>
+<span class="cm">// PlaylistDetailVC       → tracked as "PlaylistDetail"</span>
+<span class="cm">// NowPlayingController   → tracked as "NowPlaying"</span>
+<span class="cm">// System containers (UINavigationController, etc.) are excluded automatically.</span>
+
+<span class="cm">// ── SwiftUI — add modifier to each screen ─────────────────────────────</span>
+<span class="kw">struct</span> <span class="tp">LibraryView</span>: <span class="tp">View</span> {
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="tp">View</span> {
+        <span class="tp">ScrollView</span> { <span class="cm">/* track list */</span> }
+            .<span class="fn">monitoorScreen</span>(<span class="str">"Library"</span>)
+    }
+}
+
+<span class="kw">struct</span> <span class="tp">PlaylistDetailView</span>: <span class="tp">View</span> {
+    <span class="kw">let</span> playlist: <span class="tp">Playlist</span>
+
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="tp">View</span> {
+        <span class="tp">List</span>(playlist.tracks) { <span class="tp">TrackRow</span>(track: $0) }
+            .<span class="fn">monitoorScreen</span>(<span class="str">"PlaylistDetail"</span>, <span class="pm">properties</span>: [
+                <span class="str">"name"</span>:        playlist.name,
+                <span class="str">"track_count"</span>: playlist.tracks.count
+            ])
+    }
+}
+
+<span class="cm">// Sheets and modals work the same way</span>
+<span class="kw">struct</span> <span class="tp">NowPlayingView</span>: <span class="tp">View</span> {
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="tp">View</span> {
+        <span class="tp">VStack</span> { <span class="cm">/* player UI */</span> }
+            .<span class="fn">monitoorScreen</span>(<span class="str">"NowPlaying"</span>)
+    }
+}
+</code></pre>
+    </div>
+  </div>
+
+  <!-- Custom events -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">📡</div>
+      <div>
+        <div class="tracker-title">Custom events</div>
+        <div class="tracker-subtitle"><code>Monitoor.track("event_name", properties: [...])</code></div>
+      </div>
+      <span class="tracker-badge badge-manual">Manual</span>
+    </div>
+    <div class="tracker-body">
+      <p>Track any action that isn't a button tap or screen view. Call <code>Monitoor.track()</code> anywhere — in view models, closures, <code>onChange</code>, async functions. Thread-safe.</p>
+      <pre><code><span class="cm">// Simple event — something happened</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"onboarding_completed"</span>)
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"library_empty_state_shown"</span>)
+
+<span class="cm">// Event with rich context</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"song_played"</span>, <span class="pm">properties</span>: [
+    <span class="str">"title"</span>:   track.title,
+    <span class="str">"artist"</span>:  track.artist,
+    <span class="str">"source"</span>:  <span class="str">"library"</span>,      <span class="cm">// where the user found it</span>
+    <span class="str">"shuffle"</span>: isShuffled        <span class="cm">// Bool</span>
+])
+
+<span class="cm">// Tracking feature adoption</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"equalizer_opened"</span>)
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"theme_changed"</span>, <span class="pm">properties</span>: [<span class="str">"theme"</span>: selectedTheme])
+
+<span class="cm">// Tracking errors and empty states</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"import_failed"</span>, <span class="pm">properties</span>: [<span class="str">"reason"</span>: error.localizedDescription])
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"search_no_results"</span>, <span class="pm">properties</span>: [<span class="str">"query"</span>: searchText])
+
+<span class="cm">// In a SwiftUI .onChange</span>
+<span class="tp">TextField</span>(<span class="str">"Search"</span>, text: $query)
+    .<span class="fn">onChange</span>(of: query) { _, q <span class="kw">in</span>
+        <span class="kw">if</span> !q.<span class="fn">isEmpty</span> { <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"search_started"</span>) }
+    }
+
+<span class="cm">// In an async function</span>
+<span class="kw">func</span> <span class="fn">importFiles</span>(<span class="pm">urls</span>: [<span class="tp">URL</span>]) <span class="kw">async</span> {
+    <span class="kw">do</span> {
+        <span class="kw">let</span> count = <span class="kw">try await</span> library.<span class="fn">import</span>(urls)
+        <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"files_imported"</span>, <span class="pm">properties</span>: [<span class="str">"count"</span>: count])
+    } <span class="kw">catch</span> {
+        <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"import_failed"</span>)
+    }
+}
+</code></pre>
+    </div>
+  </div>
+
+  <!-- Timed events -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">⏱️</div>
+      <div>
+        <div class="tracker-title">Timed events</div>
+        <div class="tracker-subtitle"><code>Monitoor.startTimer("name")</code> then <code>Monitoor.track("name")</code></div>
+      </div>
+      <span class="tracker-badge badge-manual">Manual</span>
+    </div>
+    <div class="tracker-body">
+      <p>Measure how long something takes. Call <code>startTimer()</code> at the start, then <code>track()</code> with the same name at the end. The elapsed time is attached automatically as <code>$duration</code> (seconds as a <code>Double</code>).</p>
+      <pre><code><span class="cm">// Measure onboarding duration</span>
+<span class="cm">// Called when the onboarding flow begins</span>
+<span class="tp">Monitoor</span>.<span class="fn">startTimer</span>(<span class="str">"onboarding_flow"</span>)
+
+<span class="cm">// Called when the user finishes — $duration is attached automatically</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"onboarding_flow"</span>)
+<span class="cm">// → event contains "$duration": 47.3  (seconds)</span>
+
+<span class="cm">// Measure file import speed</span>
+<span class="tp">Monitoor</span>.<span class="fn">startTimer</span>(<span class="str">"file_import"</span>)
+<span class="kw">let</span> count = <span class="kw">try await</span> library.<span class="fn">import</span>(urls)
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"file_import"</span>, <span class="pm">properties</span>: [<span class="str">"file_count"</span>: count])
+<span class="cm">// → "$duration": 1.84, "file_count": 12</span>
+
+<span class="cm">// Measure time to first play after opening the app</span>
+<span class="tp">Monitoor</span>.<span class="fn">startTimer</span>(<span class="str">"time_to_first_play"</span>)
+<span class="cm">// ... user browses library ...</span>
+<span class="tp">Button</span>(<span class="str">"Play"</span>) { player.<span class="fn">play</span>(track) }
+    .<span class="fn">monitoorTap</span>(<span class="str">"time_to_first_play"</span>)
+<span class="cm">// → "$duration": 23.5  (seconds from app open to first play)</span>
+</code></pre>
+    </div>
+  </div>
+
+  <!-- Session duration -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">🕐</div>
+      <div>
+        <div class="tracker-title">Session duration</div>
+        <div class="tracker-subtitle">Automatic on background &nbsp;·&nbsp; Read anytime via <code>Monitoor.sessionDuration</code></div>
+      </div>
+      <span class="tracker-badge badge-both">Auto + Manual</span>
+    </div>
+    <div class="tracker-body">
+      <p>The SDK automatically attaches <code>$session_duration_s</code> to every <code>$app_background</code> event. You can also read the current elapsed time at any point in your code.</p>
+      <pre><code><span class="cm">// Read current session time</span>
+<span class="kw">let</span> seconds = <span class="tp">Monitoor</span>.sessionDuration   <span class="cm">// e.g. 142.7</span>
+<span class="kw">let</span> minutes = <span class="tp">Int</span>(<span class="tp">Monitoor</span>.sessionDuration / <span class="nm">60</span>)
+
+<span class="cm">// Include it in your own events</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"paywall_shown"</span>, <span class="pm">properties</span>: [
+    <span class="str">"session_duration_s"</span>: <span class="tp">Monitoor</span>.sessionDuration,
+    <span class="str">"trigger"</span>: <span class="str">"feature_gate"</span>
+])
+
+<span class="cm">// Display it in a debug overlay during development</span>
+<span class="tp">Text</span>(<span class="str">"Session: \(Int(Monitoor.sessionDuration))s"</span>)
+
+<span class="cm">// The SDK also sends this automatically on every background:</span>
+<span class="cm">// $app_background  →  { "$session_duration_s": 247.3 }</span>
+</code></pre>
+    </div>
+  </div>
+
+  <!-- User identity -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">👤</div>
+      <div>
+        <div class="tracker-title">User identity</div>
+        <div class="tracker-subtitle"><code>identify()</code> · <code>setUserProperties()</code> · <code>reset()</code></div>
+      </div>
+      <span class="tracker-badge badge-manual">Manual</span>
+    </div>
+    <div class="tracker-body">
+      <p>The SDK is anonymous by default. Optionally link events to your users. The user ID is SHA-256 hashed on-device — Monitoor never sees the plaintext ID.</p>
+      <pre><code><span class="cm">// After sign-in — link all future events to this user</span>
+<span class="kw">func</span> <span class="fn">onSignInSuccess</span>(user: <span class="tp">User</span>) {
+    <span class="tp">Monitoor</span>.<span class="fn">identify</span>(<span class="pm">userId</span>: user.id)  <span class="cm">// hashed on-device, never plaintext</span>
+
+    <span class="tp">Monitoor</span>.<span class="fn">setUserProperties</span>([
+        <span class="str">"plan"</span>:             user.plan,       <span class="cm">// "free", "pro"</span>
+        <span class="str">"account_age_days"</span>: user.ageDays,   <span class="cm">// Int</span>
+        <span class="str">"locale"</span>:           user.locale      <span class="cm">// "en_US"</span>
+    ])
+
+    <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"sign_in_completed"</span>, <span class="pm">properties</span>: [<span class="str">"method"</span>: <span class="str">"email"</span>])
+}
+
+<span class="cm">// When the subscription changes</span>
+<span class="kw">func</span> <span class="fn">onUpgraded</span>(<span class="pm">to</span> plan: <span class="tp">String</span>) {
+    <span class="tp">Monitoor</span>.<span class="fn">setUserProperties</span>([<span class="str">"plan"</span>: plan])
+    <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"plan_upgraded"</span>, <span class="pm">properties</span>: [<span class="str">"plan"</span>: plan])
+}
+
+<span class="cm">// On sign-out — clear identity, new anonymous device ID, new session</span>
+<span class="kw">func</span> <span class="fn">onSignOut</span>() {
+    <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"sign_out_tapped"</span>)
+    auth.<span class="fn">signOut</span>()
+    <span class="tp">Monitoor</span>.<span class="fn">reset</span>()
+}
+</code></pre>
+    </div>
+  </div>
+
+  <!-- Revenue -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">💰</div>
+      <div>
+        <div class="tracker-title">Revenue</div>
+        <div class="tracker-subtitle">StoreKit 2: automatic &nbsp;·&nbsp; StoreKit 1 / other: <code>Monitoor.trackRevenue()</code></div>
+      </div>
+      <span class="tracker-badge badge-both">Auto + Manual</span>
+    </div>
+    <div class="tracker-body">
+      <p>StoreKit 2 transactions are captured with zero code when <code>captureRevenue: true</code> (the default). For StoreKit 1 or any non-Apple payment, call <code>trackRevenue()</code> manually.</p>
+      <pre><code><span class="cm">// ── StoreKit 2 — no code needed ────────────────────────────────────────</span>
+<span class="cm">// The SDK subscribes to Transaction.updates automatically.</span>
+<span class="cm">// Every verified purchase fires a $revenue event.</span>
+
+<span class="cm">// ── StoreKit 1 ────────────────────────────────────────────────────────</span>
+<span class="kw">func</span> <span class="fn">paymentQueue</span>(
+    <span class="pm">_</span> queue: <span class="tp">SKPaymentQueue</span>,
+    <span class="pm">updatedTransactions</span> transactions: [<span class="tp">SKPaymentTransaction</span>]
+) {
+    <span class="kw">for</span> tx <span class="kw">in</span> transactions <span class="kw">where</span> tx.transactionState == .purchased {
+        <span class="tp">Monitoor</span>.<span class="fn">trackRevenue</span>(
+            <span class="pm">productId</span>:     tx.payment.productIdentifier,
+            <span class="pm">amount</span>:        product.price.<span class="fn">doubleValue</span>,
+            <span class="pm">currency</span>:      <span class="tp">Locale</span>.current.currency?.identifier ?? <span class="str">"USD"</span>,
+            <span class="pm">type</span>:          .subscription,
+            <span class="pm">transactionId</span>: tx.transactionIdentifier ?? <span class="tp">UUID</span>().<span class="fn">uuidString</span>
+        )
+        queue.<span class="fn">finishTransaction</span>(tx)
+    }
+}
+
+<span class="cm">// ── Consumable in-app purchase ─────────────────────────────────────────</span>
+<span class="tp">Monitoor</span>.<span class="fn">trackRevenue</span>(
+    <span class="pm">productId</span>:     <span class="str">"com.myapp.coins_100"</span>,
+    <span class="pm">amount</span>:        <span class="nm">0.99</span>,
+    <span class="pm">currency</span>:      <span class="str">"USD"</span>,
+    <span class="pm">type</span>:          .consumable,
+    <span class="pm">transactionId</span>: receipt.transactionId
+)
+</code></pre>
+    </div>
+  </div>
+
+  <!-- Crash reporting -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">💥</div>
+      <div>
+        <div class="tracker-title">Crash reporting</div>
+        <div class="tracker-subtitle">Fully automatic — zero code required</div>
+      </div>
+      <span class="tracker-badge badge-auto">Automatic</span>
+    </div>
+    <div class="tracker-body">
+      <p>Signal handlers and an uncaught exception handler are installed when <code>captureCrashes: true</code> (the default). Crash reports are written to disk in the signal handler and uploaded on the next app launch.</p>
+      <pre><code><span class="cm">// That's it. configure() handles everything.</span>
+<span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+    <span class="pm">apiKey</span>: apiKey,
+    <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(
+        <span class="pm">captureCrashes</span>: <span class="nm">true</span>  <span class="cm">// default — captures SIGABRT, SIGSEGV, SIGBUS,</span>
+                               <span class="cm">// SIGILL, SIGFPE, SIGTRAP, and NSExceptions</span>
+    )
+)
+
+<span class="cm">// To disable (e.g. if you use another crash SDK like Crashlytics):</span>
+<span class="tp">MonitoorOptions</span>(<span class="pm">captureCrashes</span>: <span class="nm">false</span>)
+</code></pre>
+    </div>
+  </div>
+
+
+  <!-- ── Requirements ───────────────────────────────────────────────────────── -->
+  <h2>Requirements</h2>
+  <table>
+    <tr><th>Requirement</th><th>Value</th></tr>
+    <tr><td>iOS deployment target</td><td>iOS 15.0+</td></tr>
+    <tr><td>Swift</td><td>5.9+</td></tr>
+    <tr><td>Xcode</td><td>15.0+</td></tr>
+    <tr><td>Third-party dependencies</td><td>None</td></tr>
+    <tr><td>Binary size added to app</td><td>&lt; 500 KB</td></tr>
+    <tr><td>App Tracking Transparency</td><td>Not required</td></tr>
+    <tr><td><code>NSPrivacyAccessedAPITypes</code></td><td>Not required</td></tr>
+  </table>
+
+  <!-- ── Design principles ─────────────────────────────────────────────────── -->
+  <h2>Key design principles</h2>
+
+  <h3>Zero event loss</h3>
+  <p>Every event is written to a SQLite database on the device synchronously <em>before</em> <code>track()</code> returns. Events survive app kills, crashes, and weeks of offline use. They are delivered to the server when connectivity returns, up to 90 days after capture.</p>
+
+  <h3>Anonymous first</h3>
+  <p>No PII is collected by default. The SDK uses an anonymous device UUID stored in the iOS Keychain — not linked to any Apple identifier. User IDs are opt-in and SHA-256 hashed on-device before any transmission.</p>
+
+  <h3>No direct database access</h3>
+  <p>The SDK sends events over HTTPS to an ingest service. The ingest service holds database credentials server-side. Your database password never exists inside the iOS app.</p>
+
+  <div class="callout callout-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">Ready for a deeper dive? Visit <a href="getting-started.html">Getting Started</a> for the full installation walkthrough, or jump straight to any tracker in the sidebar.</div>
+  </div>
+
+</div>
+</main>
+</div>
+</body>
+</html>

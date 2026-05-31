@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sessions — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item active" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> Sessions</div>
+  <div class="page-eyebrow">Tracking</div>
+  <h1 class="page-title">Sessions</h1>
+  <p class="page-lead">A session is a continuous period of app use. The SDK tracks session start, duration, and end automatically — no setup required.</p>
+
+  <h2>Session lifecycle</h2>
+  <p>A session begins when the app opens and ends after a configurable period of inactivity in the background (default: 30 minutes).</p>
+
+  <pre><code>User opens app
+  → $app_open event
+  → new session UUID generated
+  → session timer starts
+
+User uses the app...
+
+User backgrounds the app
+  → $app_background event (with $session_duration_s)
+
+If user returns within 30 minutes:
+  → session continues, no new $app_open
+
+If user returns after 30+ minutes:
+  → $app_open event (new session UUID)
+  → session timer resets
+</code></pre>
+
+  <h2>Reading session duration</h2>
+  <p>The current elapsed session time (in seconds) is available at any point:</p>
+
+  <pre><code><span class="kw">let</span> seconds: <span class="tp">TimeInterval</span> = <span class="tp">Monitoor</span>.sessionDuration
+<span class="cm">// e.g. 142.7</span>
+
+<span class="cm">// Format for display</span>
+<span class="kw">let</span> minutes = <span class="tp">Int</span>(<span class="tp">Monitoor</span>.sessionDuration / <span class="nm">60</span>)
+<span class="cm">// e.g. 2 (minutes)</span>
+</code></pre>
+
+  <h3>Use in your own events</h3>
+  <pre><code><span class="cm">// Attach session duration to a custom event</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"paywall_shown"</span>, <span class="pm">properties</span>: [
+    <span class="str">"session_duration_s"</span>: <span class="tp">Monitoor</span>.sessionDuration,
+    <span class="str">"trigger"</span>: <span class="str">"feature_gate"</span>
+])
+</code></pre>
+
+  <h2>Session duration in $app_background</h2>
+  <p>Every time the app backgrounds, the SDK automatically sends a <code>$app_background</code> event with the full session duration attached:</p>
+
+  <pre><code><span class="cm">// Event sent automatically by the SDK on background:</span>
+{
+  <span class="str">"name"</span>: <span class="str">"$app_background"</span>,
+  <span class="str">"properties"</span>: {
+    <span class="str">"$session_duration_s"</span>: <span class="nm">247.3</span>
+  }
+}
+</code></pre>
+
+  <p>You can query average session duration in SQL:</p>
+  <pre><code><span class="kw">SELECT</span>
+    <span class="fn">AVG</span>((properties->><span class="str">'$session_duration_s'</span>)::<span class="tp">float</span>) <span class="kw">AS</span> avg_session_seconds,
+    <span class="fn">COUNT</span>(*) <span class="kw">AS</span> total_sessions
+<span class="kw">FROM</span> <span class="str">"Event"</span>
+<span class="kw">WHERE</span> name = <span class="str">'$app_background'</span>
+    <span class="kw">AND</span> <span class="str">"occurredAt"</span> > <span class="fn">NOW</span>() - <span class="kw">INTERVAL</span> <span class="str">'30 days'</span>;
+</code></pre>
+
+  <h2>Session ID</h2>
+  <p>Every event carries a <code>session_id</code> UUID, which is the same for all events within a single session. This lets you reconstruct the exact sequence of events within a session:</p>
+  <pre><code><span class="kw">SELECT</span> name, <span class="str">"occurredAt"</span>, properties
+<span class="kw">FROM</span> <span class="str">"Event"</span>
+<span class="kw">WHERE</span> <span class="str">"sessionId"</span> = <span class="str">'your-session-uuid'</span>
+<span class="kw">ORDER BY</span> <span class="str">"occurredAt"</span>;
+</code></pre>
+
+  <h2>Configuring session timeout</h2>
+  <p>Change how long the app must be in the background before a new session is started:</p>
+  <pre><code><span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+    <span class="pm">apiKey</span>: <span class="str">"mn_live_..."</span>,
+    <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(
+        <span class="pm">sessionTimeout</span>: <span class="nm">15</span> * <span class="nm">60</span>  <span class="cm">// 15 minutes</span>
+    )
+)
+</code></pre>
+
+  <h2>Forcing a new session</h2>
+  <p>Calling <code>Monitoor.reset()</code> immediately starts a new session and clears the user identity. Use this on sign-out:</p>
+  <pre><code><span class="kw">func</span> <span class="fn">signOut</span>() {
+    auth.<span class="fn">logout</span>()
+    <span class="tp">Monitoor</span>.<span class="fn">reset</span>()  <span class="cm">// new session + new anonymous device ID</span>
+}
+</code></pre>
+
+  <hr class="divider">
+  <p>Next: <a href="revenue.html">Revenue →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Screen Views — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item active" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> Screen Views</div>
+  <div class="page-eyebrow">Tracking</div>
+  <h1 class="page-title">Screen Views</h1>
+  <p class="page-lead">Screen view tracking tells you which screens your users visit and how often. It records only the <em>name</em> of the screen as a string — no screenshots, no recordings, no visual content of any kind.</p>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">Screen tracking sends a <code>$screen_view</code> event with a <code>$screen_name</code> property. It is identical in structure to any other event and is stored in the same <code>Event</code> table.</div>
+  </div>
+
+  <h2>UIKit — automatic (no code required)</h2>
+  <p>When <code>captureScreens: true</code> (the default), the SDK swizzles <code>UIViewController.viewDidAppear(_:)</code> at startup. Every time a view controller appears, a <code>$screen_view</code> event fires automatically.</p>
+
+  <p>The screen name is derived from the view controller's class name with common suffixes stripped:</p>
+  <table>
+    <tr><th>Class name</th><th>Tracked as</th></tr>
+    <tr><td><code>LibraryViewController</code></td><td><code>Library</code></td></tr>
+    <tr><td><code>PlaylistDetailVC</code></td><td><code>PlaylistDetail</code></td></tr>
+    <tr><td><code>NowPlayingController</code></td><td><code>NowPlaying</code></td></tr>
+    <tr><td><code>SettingsVC</code></td><td><code>Settings</code></td></tr>
+  </table>
+
+  <p>Stripped suffixes: <code>ViewController</code>, <code>Controller</code>, <code>VC</code>.</p>
+
+  <p>System containers are excluded automatically and do not generate screen view events:</p>
+  <ul>
+    <li><code>UINavigationController</code></li>
+    <li><code>UITabBarController</code></li>
+    <li><code>UIPageViewController</code></li>
+    <li><code>UISplitViewController</code></li>
+    <li><code>UIInputViewController</code></li>
+    <li><code>UIAlertController</code></li>
+  </ul>
+
+  <h2>SwiftUI — <code>.monitoorScreen()</code> modifier</h2>
+  <p>SwiftUI does not use <code>UIViewController</code> for every screen, so automatic tracking does not apply to SwiftUI views. Attach the <code>.monitoorScreen()</code> modifier to each screen-level view instead.</p>
+
+  <h3>Basic usage</h3>
+  <pre><code><span class="kw">struct</span> <span class="tp">LibraryView</span>: <span class="tp">View</span> {
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="tp">View</span> {
+        <span class="tp">List</span>(tracks) { <span class="tp">TrackRow</span>(track: $0) }
+            .<span class="fn">monitoorScreen</span>(<span class="str">"Library"</span>)
+    }
+}
+</code></pre>
+
+  <h3>With properties</h3>
+  <pre><code><span class="kw">struct</span> <span class="tp">PlaylistDetailView</span>: <span class="tp">View</span> {
+    <span class="kw">let</span> playlist: <span class="tp">Playlist</span>
+
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="tp">View</span> {
+        <span class="tp">ScrollView</span> { <span class="cm">/* content */</span> }
+            .<span class="fn">monitoorScreen</span>(<span class="str">"PlaylistDetail"</span>, <span class="pm">properties</span>: [
+                <span class="str">"name"</span>:        playlist.name,
+                <span class="str">"track_count"</span>: playlist.trackIds.count
+            ])
+    }
+}
+</code></pre>
+
+  <h3>Tracking sheets and modals</h3>
+  <pre><code><span class="kw">struct</span> <span class="tp">NowPlayingView</span>: <span class="tp">View</span> {
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="tp">View</span> {
+        <span class="tp">VStack</span> { <span class="cm">/* player UI */</span> }
+            .<span class="fn">monitoorScreen</span>(<span class="str">"NowPlaying"</span>)
+    }
+}
+
+<span class="cm">// The .sheet presentation — track the sheet as its own screen</span>
+.<span class="fn">sheet</span>(<span class="pm">isPresented</span>: $showNowPlaying) {
+    <span class="tp">NowPlayingView</span>()  <span class="cm">// .monitoorScreen is inside NowPlayingView</span>
+}
+</code></pre>
+
+  <h3>Tracking tab-based navigation</h3>
+  <pre><code><span class="kw">struct</span> <span class="tp">RootView</span>: <span class="tp">View</span> {
+    <span class="kw">@State var</span> selectedTab: <span class="tp">AppTab</span> = .library
+
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="tp">View</span> {
+        <span class="tp">ZStack</span> {
+            <span class="kw">switch</span> selectedTab {
+            <span class="kw">case</span> .library:
+                <span class="tp">LibraryView</span>()    <span class="cm">// has .monitoorScreen("Library")</span>
+            <span class="kw">case</span> .playlists:
+                <span class="tp">PlaylistsView</span>()  <span class="cm">// has .monitoorScreen("Playlists")</span>
+            <span class="kw">case</span> .settings:
+                <span class="tp">SettingsView</span>()   <span class="cm">// has .monitoorScreen("Settings")</span>
+            }
+        }
+    }
+}
+</code></pre>
+
+  <h2>Manual tracking</h2>
+  <p>Call <code>Monitoor.screen()</code> directly when you need full control, for example in response to a programmatic navigation event:</p>
+
+  <pre><code><span class="tp">Monitoor</span>.<span class="fn">screen</span>(<span class="str">"OnboardingStep3"</span>)
+
+<span class="tp">Monitoor</span>.<span class="fn">screen</span>(<span class="str">"StockDetail"</span>, <span class="pm">properties</span>: [<span class="str">"symbol"</span>: <span class="str">"AAPL"</span>])
+</code></pre>
+
+  <h2>Disabling automatic screen tracking</h2>
+  <p>To disable UIKit's automatic swizzle while keeping manual tracking available:</p>
+  <pre><code><span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+    <span class="pm">apiKey</span>: <span class="str">"mn_live_..."</span>,
+    <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(
+        <span class="pm">captureScreens</span>: <span class="nm">false</span>  <span class="cm">// disables the UIKit swizzle</span>
+    )
+)
+</code></pre>
+
+  <div class="callout callout-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body"><strong>Name consistency matters.</strong> If the same screen is tracked as <code>"Library"</code> in some places and <code>"LibraryView"</code> in others, the dashboard will show them as two separate screens. Pick a convention and stick to it.</div>
+  </div>
+
+  <hr class="divider">
+  <p>Next: <a href="sessions.html">Sessions →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>

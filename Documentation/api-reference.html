@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Reference — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item active" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> API Reference</div>
+  <div class="page-eyebrow">Reference</div>
+  <h1 class="page-title">API Reference</h1>
+  <p class="page-lead">Complete reference for every public method, property, type, and modifier in MonitoorSDK v1.0.0.</p>
+
+  <!-- ── Monitoor ─────────────────────────────────────────────────────────── -->
+  <h2>Monitoor</h2>
+  <p>The SDK's public interface. All members are <code>static</code>. Thread-safe. Safe to call from any queue or thread.</p>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">configure</span>(<span class="pm">apiKey</span>: <span class="tp">String</span>, <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>)</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Initialises the SDK. Must be called once before any other method. Subsequent calls are silently ignored.</p>
+      <ul class="param-list">
+        <li><span class="param-name">apiKey</span><span class="param-type">String</span><span class="param-desc">Your Monitoor API key. Must start with <code>mn_live_</code> for production or <code>mn_dev_</code> for development.</span></li>
+        <li><span class="param-name">options</span><span class="param-type">MonitoorOptions</span><span class="param-desc">Configuration. All fields have defaults — pass <code>MonitoorOptions()</code> to use them all.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">track</span>(<span class="pm">_</span> name: <span class="tp">String</span>, <span class="pm">properties</span>: [<span class="tp">String</span>: <span class="tp">Any</span>])</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Records a named event. Writes to the local buffer synchronously before returning. Thread-safe.</p>
+      <ul class="param-list">
+        <li><span class="param-name">name</span><span class="param-type">String</span><span class="param-desc">Event name. Use <code>snake_case</code>. Avoid the <code>$</code> prefix (reserved for system events).</span></li>
+        <li><span class="param-name">properties</span><span class="param-type">[String: Any]</span><span class="param-desc">Optional key-value pairs. Values must be <code>String</code>, <code>Int</code>, <code>Double</code>, or <code>Bool</code>. Defaults to empty.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">screen</span>(<span class="pm">_</span> name: <span class="tp">String</span>, <span class="pm">properties</span>: [<span class="tp">String</span>: <span class="tp">Any</span>])</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Records a <code>$screen_view</code> event with a <code>$screen_name</code> property. Prefer <code>.monitoorScreen()</code> modifier in SwiftUI.</p>
+      <ul class="param-list">
+        <li><span class="param-name">name</span><span class="param-type">String</span><span class="param-desc">The screen name as it should appear in the dashboard.</span></li>
+        <li><span class="param-name">properties</span><span class="param-type">[String: Any]</span><span class="param-desc">Optional additional properties merged with <code>$screen_name</code>.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">startTimer</span>(<span class="pm">_</span> name: <span class="tp">String</span>)</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Starts a named timer. When <code>track(name:)</code> is called with the same name, the elapsed duration is automatically attached as <code>$duration</code> (seconds as <code>Double</code>).</p>
+      <ul class="param-list">
+        <li><span class="param-name">name</span><span class="param-type">String</span><span class="param-desc">The timer key. Must exactly match the event name passed to <code>track()</code>.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">identify</span>(<span class="pm">userId</span>: <span class="tp">String</span>)</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Associates subsequent events with a user. The provided ID is SHA-256 hashed on-device before storage or transmission. Call after sign-in.</p>
+      <ul class="param-list">
+        <li><span class="param-name">userId</span><span class="param-type">String</span><span class="param-desc">Your internal user identifier. Do not pass PII (email, phone, name).</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">setUserProperties</span>(<span class="pm">_</span> properties: [<span class="tp">String</span>: <span class="tp">Any</span>])</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Attaches non-PII attributes to the current user. Properties are merged — keys overwrite each other on conflict.</p>
+      <ul class="param-list">
+        <li><span class="param-name">properties</span><span class="param-type">[String: Any]</span><span class="param-desc">Key-value pairs describing the user. Values must be <code>String</code>, <code>Int</code>, <code>Double</code>, or <code>Bool</code>.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">reset</span>()</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Clears the user identity and user properties, generates a new anonymous device ID, and starts a new session. Call on sign-out.</p>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">trackRevenue</span>(<span class="pm">productId</span>: <span class="tp">String</span>, <span class="pm">amount</span>: <span class="tp">Double</span>, <span class="pm">currency</span>: <span class="tp">String</span>, <span class="pm">type</span>: <span class="tp">RevenueType</span>, <span class="pm">transactionId</span>: <span class="tp">String</span>)</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Manually records a revenue event. Use for StoreKit 1 or non-StoreKit purchases. StoreKit 2 is captured automatically.</p>
+      <ul class="param-list">
+        <li><span class="param-name">productId</span><span class="param-type">String</span><span class="param-desc">Product identifier from your payment provider or App Store Connect.</span></li>
+        <li><span class="param-name">amount</span><span class="param-type">Double</span><span class="param-desc">Purchase amount as a decimal number.</span></li>
+        <li><span class="param-name">currency</span><span class="param-type">String</span><span class="param-desc">ISO 4217 currency code, e.g. <code>"USD"</code>, <code>"EUR"</code>.</span></li>
+        <li><span class="param-name">type</span><span class="param-type">RevenueType</span><span class="param-desc"><code>.subscription</code>, <code>.oneTime</code>, or <code>.consumable</code>.</span></li>
+        <li><span class="param-name">transactionId</span><span class="param-type">String</span><span class="param-desc">Unique transaction identifier for deduplication.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static var</span>
+      <code>sessionDuration: <span class="tp">TimeInterval</span></code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">The elapsed time in seconds since the current session started. Returns <code>0</code> if the SDK is not configured. Read-only.</p>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">flush</span>(<span class="pm">completion</span>: (() -> <span class="tp">Void</span>)?)</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Forces an immediate flush of all buffered events. The completion closure is called when the buffer is drained or a non-retryable error occurs.</p>
+      <ul class="param-list">
+        <li><span class="param-name">completion</span><span class="param-type">(() -> Void)?</span><span class="param-desc">Optional closure called on completion. Not guaranteed to be called on the main thread. Defaults to <code>nil</code>.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ── View modifiers ──────────────────────────────────────────────────────── -->
+  <h2>SwiftUI View Modifiers</h2>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">modifier</span>
+      <code>.<span class="fn">monitoorTap</span>(<span class="pm">_</span> eventName: <span class="tp">String</span>, <span class="pm">properties</span>: [<span class="tp">String</span>: <span class="tp">Any</span>])</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Tracks a tap on the modified view as a Monitoor event. Uses <code>simultaneousGesture</code> — fires alongside the view's own tap action without interfering with it. Applicable to any <code>View</code>.</p>
+      <ul class="param-list">
+        <li><span class="param-name">eventName</span><span class="param-type">String</span><span class="param-desc">The event name sent to Monitoor.</span></li>
+        <li><span class="param-name">properties</span><span class="param-type">[String: Any]</span><span class="param-desc">Optional properties. Defaults to empty.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">modifier</span>
+      <code>.<span class="fn">monitoorScreen</span>(<span class="pm">_</span> name: <span class="tp">String</span>, <span class="pm">properties</span>: [<span class="tp">String</span>: <span class="tp">Any</span>])</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Sends a <code>$screen_view</code> event when the view appears (<code>.onAppear</code>). Use on screen-level SwiftUI views.</p>
+      <ul class="param-list">
+        <li><span class="param-name">name</span><span class="param-type">String</span><span class="param-desc">Screen name as it should appear in the dashboard.</span></li>
+        <li><span class="param-name">properties</span><span class="param-type">[String: Any]</span><span class="param-desc">Optional additional properties. Defaults to empty.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ── UIKit ──────────────────────────────────────────────────────────────── -->
+  <h2>UIKit</h2>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">class</span>
+      <code><span class="tp">MonitoorButton</span>: <span class="tp">UIButton</span></code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">A <code>UIButton</code> subclass that automatically tracks every <code>.touchUpInside</code> event.</p>
+      <ul class="param-list">
+        <li><span class="param-name">trackingEventName</span><span class="param-type">String</span><span class="param-desc">The event name to send on tap. Can be changed at runtime.</span></li>
+        <li><span class="param-name">trackingProperties</span><span class="param-type">[String: Any]</span><span class="param-desc">Properties sent with each tap event. Defaults to empty.</span></li>
+      </ul>
+      <pre style="margin-top:12px"><code><span class="kw">let</span> btn = <span class="tp">MonitoorButton</span>(<span class="pm">eventName</span>: <span class="str">"subscribe_tapped"</span>)
+<span class="kw">let</span> btn2 = <span class="tp">MonitoorButton</span>(<span class="pm">eventName</span>: <span class="str">"buy_tapped"</span>, <span class="pm">properties</span>: [<span class="str">"plan"</span>: <span class="str">"annual"</span>])</code></pre>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">extension UIButton</span>
+      <code>.<span class="fn">monitoor_trackTaps</span>(<span class="pm">eventName</span>: <span class="tp">String</span>, <span class="pm">properties</span>: [<span class="tp">String</span>: <span class="tp">Any</span>])</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Attaches tap tracking to any existing <code>UIButton</code> without subclassing. The tracker is retained as an associated object and released when the button is deallocated.</p>
+      <ul class="param-list">
+        <li><span class="param-name">eventName</span><span class="param-type">String</span><span class="param-desc">The event name to send on tap.</span></li>
+        <li><span class="param-name">properties</span><span class="param-type">[String: Any]</span><span class="param-desc">Properties sent with each tap event. Defaults to empty.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ── Enums ──────────────────────────────────────────────────────────────── -->
+  <h2>RevenueType</h2>
+  <table>
+    <tr><th>Case</th><th>Use for</th></tr>
+    <tr><td><code>.subscription</code></td><td>Auto-renewable subscriptions</td></tr>
+    <tr><td><code>.oneTime</code></td><td>Non-consumable one-time purchases</td></tr>
+    <tr><td><code>.consumable</code></td><td>Consumable items (credits, coins)</td></tr>
+  </table>
+
+  <h2>MonitoorOptions.Environment</h2>
+  <table>
+    <tr><th>Case</th><th>Required key prefix</th></tr>
+    <tr><td><code>.production</code></td><td><code>mn_live_</code></td></tr>
+    <tr><td><code>.development</code></td><td><code>mn_dev_</code></td></tr>
+  </table>
+
+</div></main>
+</div>
+</body>
+</html>

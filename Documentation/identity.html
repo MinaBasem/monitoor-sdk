@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Identity — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item active" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> User Identity</div>
+  <div class="page-eyebrow">Identity</div>
+  <h1 class="page-title">User Identity</h1>
+  <p class="page-lead">The SDK is anonymous by default. Optionally link events to your own user IDs and attach non-PII attributes. All user IDs are hashed on-device before leaving the app.</p>
+
+  <h2>How identity works</h2>
+  <p>The SDK uses two identifiers:</p>
+  <table>
+    <tr><th>Identifier</th><th>Type</th><th>Lifetime</th><th>Notes</th></tr>
+    <tr><td><code>device_id</code></td><td>UUID (auto-generated)</td><td>Permanent, survives app updates</td><td>Stored in iOS Keychain. Not linked to Apple ID or any real identity. Reset on <code>Monitoor.reset()</code>.</td></tr>
+    <tr><td><code>user_id_hash</code></td><td>SHA-256 hex string (opt-in)</td><td>Until <code>reset()</code> is called</td><td>SHA-256 of your user ID, hashed on-device. Monitoor never receives the plaintext ID.</td></tr>
+  </table>
+
+  <h2>identify()</h2>
+  <p>Call after the user signs in to link events to a specific user. All subsequent events will carry the hashed user ID.</p>
+
+  <pre><code><span class="cm">// In your sign-in completion handler</span>
+<span class="kw">func</span> <span class="fn">didSignIn</span>(user: <span class="tp">User</span>) {
+    <span class="tp">Monitoor</span>.<span class="fn">identify</span>(<span class="pm">userId</span>: user.id)
+}
+</code></pre>
+
+  <pre><code><span class="cm">// With SwiftUI state</span>
+.<span class="fn">onChange</span>(of: authManager.currentUser) { _, user <span class="kw">in</span>
+    <span class="kw">if let</span> user {
+        <span class="tp">Monitoor</span>.<span class="fn">identify</span>(<span class="pm">userId</span>: user.id)
+    } <span class="kw">else</span> {
+        <span class="tp">Monitoor</span>.<span class="fn">reset</span>()
+    }
+}
+</code></pre>
+
+  <div class="callout callout-warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body"><strong>Do not pass PII as the user ID.</strong> Do not pass an email address, phone number, or any other directly identifying string. Pass your internal user ID (a UUID or opaque numeric ID). Even though it is hashed, it is best practice not to use reversible identifiers.</div>
+  </div>
+
+  <h2>setUserProperties()</h2>
+  <p>Attach non-PII attributes that describe the user's account state. These are not sent as their own events — they are attached to the user identity and can be used in the dashboard to segment events.</p>
+
+  <pre><code><span class="cm">// Set after sign-in or when user state changes</span>
+<span class="tp">Monitoor</span>.<span class="fn">setUserProperties</span>([
+    <span class="str">"plan"</span>:              <span class="str">"pro"</span>,
+    <span class="str">"account_age_days"</span>:  <span class="nm">120</span>,
+    <span class="str">"has_2fa"</span>:           <span class="nm">true</span>
+])
+</code></pre>
+
+  <pre><code><span class="cm">// Update when subscription changes</span>
+<span class="kw">func</span> <span class="fn">onSubscriptionChanged</span>(<span class="pm">to</span> plan: <span class="tp">Plan</span>) {
+    <span class="tp">Monitoor</span>.<span class="fn">setUserProperties</span>([<span class="str">"plan"</span>: plan.rawValue])
+    <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"subscription_changed"</span>, <span class="pm">properties</span>: [<span class="str">"plan"</span>: plan.rawValue])
+}
+</code></pre>
+
+  <p>Properties are merged — calling <code>setUserProperties()</code> multiple times adds to the existing set. Later values overwrite earlier ones for the same key:</p>
+
+  <pre><code><span class="tp">Monitoor</span>.<span class="fn">setUserProperties</span>([<span class="str">"plan"</span>: <span class="str">"free"</span>])
+<span class="tp">Monitoor</span>.<span class="fn">setUserProperties</span>([<span class="str">"plan"</span>: <span class="str">"pro"</span>])  <span class="cm">// overwrites "free"</span>
+
+<span class="cm">// Result: plan = "pro"</span>
+</code></pre>
+
+  <h2>reset()</h2>
+  <p>Clears all user identity, generates a new anonymous <code>device_id</code>, and starts a new session. Use on sign-out so future events cannot be correlated with the previous user.</p>
+
+  <pre><code><span class="kw">func</span> <span class="fn">signOut</span>() {
+    auth.<span class="fn">signOut</span>()
+    <span class="tp">Monitoor</span>.<span class="fn">reset</span>()
+    <span class="cm">// A fresh $app_open event is sent with the new device_id</span>
+}
+</code></pre>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body"><code>reset()</code> generates a new Keychain-stored <code>device_id</code>. After calling it, there is no way to re-link events before and after the reset. This is by design.</div>
+  </div>
+
+  <h2>Full sign-in / sign-out flow</h2>
+  <pre><code><span class="cm">// On app start — SDK is anonymous until the user signs in</span>
+<span class="tp">Monitoor</span>.<span class="fn">configure</span>(<span class="pm">apiKey</span>: <span class="str">"mn_live_..."</span>)
+
+<span class="cm">// After successful sign-in</span>
+<span class="kw">func</span> <span class="fn">onSignInSuccess</span>(user: <span class="tp">User</span>) {
+    <span class="tp">Monitoor</span>.<span class="fn">identify</span>(<span class="pm">userId</span>: user.id)
+    <span class="tp">Monitoor</span>.<span class="fn">setUserProperties</span>([
+        <span class="str">"plan"</span>: user.plan,
+        <span class="str">"locale"</span>: user.locale
+    ])
+    <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"sign_in_completed"</span>, <span class="pm">properties</span>: [
+        <span class="str">"method"</span>: <span class="str">"email"</span>
+    ])
+}
+
+<span class="cm">// After sign-out</span>
+<span class="kw">func</span> <span class="fn">onSignOut</span>() {
+    <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"sign_out_tapped"</span>)
+    auth.<span class="fn">signOut</span>()
+    <span class="tp">Monitoor</span>.<span class="fn">reset</span>()  <span class="cm">// clears identity, new anonymous device</span>
+}
+</code></pre>
+
+  <hr class="divider">
+  <p>Next: <a href="how-it-works.html">How It Works →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>

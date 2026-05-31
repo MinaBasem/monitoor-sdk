@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuration — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item active" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> Configuration</div>
+  <div class="page-eyebrow">MonitoorOptions</div>
+  <h1 class="page-title">Configuration</h1>
+  <p class="page-lead">All SDK behaviour is controlled through <code>MonitoorOptions</code>, passed to <code>Monitoor.configure()</code>. Every option has a sensible default — only override what you need.</p>
+
+  <h2>Full configuration example</h2>
+  <pre><code><span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+    <span class="pm">apiKey</span>: <span class="str">"mn_live_your_key_here"</span>,
+    <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(
+        <span class="pm">ingestURL</span>:          <span class="tp">URL</span>(<span class="pm">string</span>: <span class="str">"https://ingest.monitoor.io"</span>)!,
+        <span class="pm">environment</span>:        .production,
+        <span class="pm">captureEvents</span>:      <span class="nm">true</span>,
+        <span class="pm">captureScreens</span>:     <span class="nm">true</span>,
+        <span class="pm">captureRevenue</span>:     <span class="nm">true</span>,
+        <span class="pm">captureCrashes</span>:     <span class="nm">true</span>,
+        <span class="pm">captureHeatmaps</span>:    <span class="nm">false</span>,   <span class="cm">// opt-in</span>
+        <span class="pm">captureRecordings</span>:  <span class="nm">false</span>,   <span class="cm">// opt-in</span>
+        <span class="pm">sampleRate</span>:         <span class="nm">1.0</span>,
+        <span class="pm">retentionDays</span>:      <span class="nm">90</span>,
+        <span class="pm">flushInterval</span>:      <span class="nm">20</span>,      <span class="cm">// seconds</span>
+        <span class="pm">flushBatchSize</span>:     <span class="nm">50</span>,      <span class="cm">// events per request</span>
+        <span class="pm">sessionTimeout</span>:     <span class="nm">30</span> * <span class="nm">60</span>  <span class="cm">// 30 minutes</span>
+    )
+)
+</code></pre>
+
+  <h2>Option reference</h2>
+
+  <h3>ingestURL</h3>
+  <table>
+    <tr><th>Type</th><th>Default</th></tr>
+    <tr><td><code>URL</code></td><td><code>https://ingest.monitoor.io</code></td></tr>
+  </table>
+  <p>The base URL of the Monitoor ingest service. All event batches are posted to <code>{ingestURL}/v1/ingest</code>. Change this to your local server address during development.</p>
+
+  <h3>environment</h3>
+  <table>
+    <tr><th>Type</th><th>Default</th></tr>
+    <tr><td><code>MonitoorOptions.Environment</code></td><td><code>.production</code></td></tr>
+  </table>
+  <p>Must match the prefix of your API key:</p>
+  <table>
+    <tr><th>Environment</th><th>Required key prefix</th><th>Use for</th></tr>
+    <tr><td><code>.production</code></td><td><code>mn_live_</code></td><td>App Store, TestFlight</td></tr>
+    <tr><td><code>.development</code></td><td><code>mn_dev_</code></td><td>Local dev, Simulator</td></tr>
+  </table>
+  <p>A mismatch causes <code>configure()</code> to abort and log an error. Events tagged <code>development</code> are filtered out of production dashboards.</p>
+
+  <h3>captureEvents</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Bool</code></td><td><code>true</code></td></tr></table>
+  <p>When <code>true</code>, calls to <code>Monitoor.track()</code> and <code>.monitoorTap()</code> are captured. Set to <code>false</code> to disable all custom event tracking (for example, during an A/B test where you want to reduce data volume).</p>
+
+  <h3>captureScreens</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Bool</code></td><td><code>true</code></td></tr></table>
+  <p>When <code>true</code>, screen view events are captured. In UIKit, this is fully automatic via a method swizzle on <code>UIViewController.viewDidAppear(_:)</code>. In SwiftUI, attach <code>.monitoorScreen("Name")</code> to your views. This option maps to the <code>captureScreens</code> column on your <code>ApiKey</code> record.</p>
+
+  <h3>captureRevenue</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Bool</code></td><td><code>true</code></td></tr></table>
+  <p>When <code>true</code>, all verified StoreKit 2 transactions are captured automatically. Manual calls to <code>Monitoor.trackRevenue()</code> always work regardless of this setting.</p>
+
+  <h3>captureCrashes</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Bool</code></td><td><code>true</code></td></tr></table>
+  <p>When <code>true</code>, the SDK installs signal handlers (<code>SIGABRT</code>, <code>SIGSEGV</code>, <code>SIGBUS</code>, <code>SIGILL</code>, <code>SIGFPE</code>, <code>SIGTRAP</code>) and an uncaught exception handler. Crash reports are stored on disk and uploaded on the next app launch.</p>
+
+  <div class="callout callout-warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body"><strong>Crash handler conflicts.</strong> If you use another crash reporting SDK alongside Monitoor, both can coexist as long as each saves and re-raises the signal. Monitoor preserves the previously installed exception handler and re-raises signals after writing the report.</div>
+  </div>
+
+  <h3>captureHeatmaps</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Bool</code></td><td><code>false</code></td></tr></table>
+  <p>Opt-in. Privacy-sensitive. Not yet implemented. Reserved for click heatmap capture in a future release.</p>
+
+  <h3>captureRecordings</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Bool</code></td><td><code>false</code></td></tr></table>
+  <p>Opt-in. Privacy-sensitive. Not yet implemented. Reserved for session recording in a future release. Does not capture any visual content until implemented.</p>
+
+  <h3>sampleRate</h3>
+  <table><tr><th>Type</th><th>Default</th><th>Range</th></tr><tr><td><code>Double</code></td><td><code>1.0</code></td><td><code>0.0 – 1.0</code></td></tr></table>
+  <p>Controls what fraction of developer events are actually recorded. <code>1.0</code> sends every event. <code>0.5</code> randomly drops ~50% of events. This mirrors the <code>mul</code> column on your <code>ApiKey</code> record, which the ingest service uses for statistical weighting.</p>
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">System events prefixed with <code>$</code> (such as <code>$app_open</code>, <code>$app_background</code>, <code>$screen_view</code>) are <strong>never</strong> sampled out, regardless of <code>sampleRate</code>.</div>
+  </div>
+
+  <h3>retentionDays</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Int</code></td><td><code>90</code></td></tr></table>
+  <p>Maximum number of days an unsent event is kept in the local SQLite buffer. Events older than this are pruned automatically. This mirrors the <code>retention</code> column on your <code>ApiKey</code> record.</p>
+
+  <h3>flushInterval</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>TimeInterval</code> (seconds)</td><td><code>20</code></td></tr></table>
+  <p>How often the SDK's timer fires to flush buffered events. Increasing this reduces network activity. Decreasing it makes events appear in the dashboard sooner. Batch-full and lifecycle triggers fire independently of this timer.</p>
+
+  <h3>flushBatchSize</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Int</code></td><td><code>50</code></td></tr></table>
+  <p>Maximum number of events sent in a single HTTP request. When the buffer reaches this count, a flush is triggered immediately regardless of the timer. Each flush drains the entire buffer in consecutive batches of this size.</p>
+
+  <h3>sessionTimeout</h3>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>TimeInterval</code> (seconds)</td><td><code>1800</code> (30 min)</td></tr></table>
+  <p>If the app remains in the background longer than this interval before returning to the foreground, a new session is started. The previous session's <code>$session_duration_s</code> is attached to the <code>$app_background</code> event automatically.</p>
+
+  <hr class="divider">
+  <p>Next: <a href="events.html">Event Tracking →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>

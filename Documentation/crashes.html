@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crash Reporting — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item active" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> Crash Reporting</div>
+  <div class="page-eyebrow">Tracking</div>
+  <h1 class="page-title">Crash Reporting</h1>
+  <p class="page-lead">Capture signal-level and exception-level crashes without any code changes. Reports include a full stack trace and are uploaded automatically on the next app launch.</p>
+
+  <h2>Setup</h2>
+  <p>Crash reporting is enabled by default. No additional code is required beyond calling <code>Monitoor.configure()</code>:</p>
+
+  <pre><code><span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+    <span class="pm">apiKey</span>: <span class="str">"mn_live_..."</span>,
+    <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(
+        <span class="pm">captureCrashes</span>: <span class="nm">true</span>  <span class="cm">// default</span>
+    )
+)
+</code></pre>
+
+  <h2>What is captured</h2>
+  <p>The SDK installs two types of handlers:</p>
+
+  <table>
+    <tr><th>Handler type</th><th>Catches</th></tr>
+    <tr><td><code>NSSetUncaughtExceptionHandler</code></td><td>Uncaught Swift/Objective-C exceptions (e.g., <code>fatalError</code>, <code>preconditionFailure</code>, unhandled <code>NSException</code>)</td></tr>
+    <tr><td><code>sigaction</code></td><td><code>SIGABRT</code>, <code>SIGSEGV</code>, <code>SIGBUS</code>, <code>SIGILL</code>, <code>SIGFPE</code>, <code>SIGTRAP</code></td></tr>
+  </table>
+
+  <h2>Crash report flow</h2>
+  <pre><code>1. Crash occurs
+      ↓
+2. Signal or exception handler fires
+      ↓
+3. Handler writes crash report to disk
+   (async-signal-safe: only write() syscall, no malloc, no ObjC)
+      ↓
+4. Process exits / re-raises signal
+      ↓
+5. NEXT app launch:
+      SDK scans Caches/monitoor_crashes/ for pending .json files
+      Uploads each to POST /v1/crashes before any other events
+      Deletes the file on successful upload
+</code></pre>
+
+  <div class="callout callout-warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body"><strong>Reports upload on the next launch, not during the crash.</strong> This is intentional — the process is in an undefined state after a crash and it is unsafe to make network calls at that point.</div>
+  </div>
+
+  <h2>What a crash report contains</h2>
+  <table>
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td><code>exception_type</code></td><td>Signal name or exception type (e.g. <code>EXC_BAD_ACCESS</code>)</td></tr>
+    <tr><td><code>exception_name</code></td><td>Signal name (e.g. <code>SIGSEGV</code>)</td></tr>
+    <tr><td><code>reason</code></td><td>Human-readable reason string</td></tr>
+    <tr><td><code>session_id</code></td><td>The session in which the crash occurred</td></tr>
+    <tr><td><code>device_id</code></td><td>Anonymous device identifier</td></tr>
+    <tr><td><code>app_version</code></td><td>App version at time of crash</td></tr>
+    <tr><td><code>os_version</code></td><td>iOS version</td></tr>
+    <tr><td><code>device</code></td><td>Device model</td></tr>
+    <tr><td><code>occurred_at</code></td><td>Timestamp of the crash</td></tr>
+    <tr><td><code>threads</code></td><td>Array of thread backtraces with frame addresses</td></tr>
+  </table>
+
+  <h2>Symbol resolution (dSYM)</h2>
+  <p>Crash frames are captured as raw memory addresses. Without the debug symbol file (<code>.dSYM</code>), frames appear as hex addresses. Upload your dSYM after each build to symbolicate them into readable function names and line numbers.</p>
+
+  <pre><code><span class="cm"># Upload dSYM after building</span>
+curl -X POST https://ingest.monitoor.io/v1/apps/YOUR_APP_ID/dsym \
+  -H <span class="str">"Authorization: Bearer mn_live_..."</span> \
+  -F <span class="str">"file=@/path/to/YourApp.app.dSYM.zip"</span> \
+  -F <span class="str">"build_uuid=YOUR_BUILD_UUID"</span> \
+  -F <span class="str">"app_version=2.1.0"</span> \
+  -F <span class="str">"build=214"</span>
+</code></pre>
+
+  <p>Find your build UUID:</p>
+  <pre><code>xcrun dwarfdump --uuid /path/to/YourApp.app/YourApp
+</code></pre>
+
+  <div class="callout callout-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">Add the dSYM upload command to your Xcode build scheme's post-action script or your CI pipeline so it runs automatically on every build.</div>
+  </div>
+
+  <h2>Disabling crash reporting</h2>
+  <pre><code><span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+    <span class="pm">apiKey</span>: <span class="str">"mn_live_..."</span>,
+    <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(
+        <span class="pm">captureCrashes</span>: <span class="nm">false</span>
+    )
+)
+</code></pre>
+
+  <h2>Using alongside other crash reporters</h2>
+  <p>Monitoor preserves any previously installed exception handler and re-raises signals after writing its own report, so it is safe to use alongside other crash reporting SDKs (Firebase Crashlytics, Sentry, etc.).</p>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">For the most reliable behaviour, call <code>Monitoor.configure()</code> before initialising other crash reporting SDKs, so Monitoor's handlers are installed first in the chain.</div>
+  </div>
+
+  <hr class="divider">
+  <p>Next: <a href="identity.html">User Identity →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>

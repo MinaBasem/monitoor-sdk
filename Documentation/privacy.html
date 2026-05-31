@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item active" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> Privacy</div>
+  <div class="page-eyebrow">Reference</div>
+  <h1 class="page-title">Privacy</h1>
+  <p class="page-lead">The SDK is designed to be privacy-first by default. No PII is collected unless you explicitly opt in, and even then it is hashed before leaving the device.</p>
+
+  <h2>Data collected by default</h2>
+  <table>
+    <tr><th>Data</th><th>Collected</th><th>Notes</th></tr>
+    <tr><td>Device ID</td><td>✅ Yes</td><td>A UUID generated on first launch and stored in the iOS Keychain. Not linked to Apple ID, IDFA, IDFV, or any real-world identity. Reset when the user calls <code>Monitoor.reset()</code>.</td></tr>
+    <tr><td>App version &amp; build</td><td>✅ Yes</td><td>Read from <code>CFBundleShortVersionString</code> and <code>CFBundleVersion</code>.</td></tr>
+    <tr><td>iOS version</td><td>✅ Yes</td><td>e.g. <code>iOS 18.0</code></td></tr>
+    <tr><td>Device model</td><td>✅ Yes</td><td>e.g. <code>iPhone16,2</code> (hardware identifier). Not a user's name.</td></tr>
+    <tr><td>Locale &amp; timezone</td><td>✅ Yes</td><td>e.g. <code>en_US</code>, <code>Europe/London</code></td></tr>
+    <tr><td>Bundle ID</td><td>✅ Yes</td><td>e.g. <code>com.example.myapp</code></td></tr>
+    <tr><td>Session UUID</td><td>✅ Yes</td><td>Random UUID per session. Not linked to any external system.</td></tr>
+    <tr><td>Event timestamps</td><td>✅ Yes</td><td>Precise to milliseconds.</td></tr>
+    <tr><td>Custom event properties</td><td>✅ Yes (what you pass)</td><td>You control all property values. Do not pass PII.</td></tr>
+  </table>
+
+  <h2>Data NOT collected</h2>
+  <table>
+    <tr><th>Data</th><th>Notes</th></tr>
+    <tr><td>IP address</td><td>The ingest service may briefly see the IP to resolve the country, but it is never stored in the database.</td></tr>
+    <tr><td>IDFA / IDFV</td><td>Never accessed. No App Tracking Transparency prompt is required.</td></tr>
+    <tr><td>Apple ID</td><td>Never accessed.</td></tr>
+    <tr><td>Precise location</td><td>Never accessed. No <code>NSLocationUsageDescription</code> required.</td></tr>
+    <tr><td>Contacts, photos, microphone, camera</td><td>Never accessed.</td></tr>
+    <tr><td>Keystrokes or clipboard content</td><td>Never accessed.</td></tr>
+    <tr><td>Screen recordings or screenshots</td><td>Not captured unless <code>captureRecordings: true</code> is set (opt-in, not yet implemented).</td></tr>
+    <tr><td>Network traffic contents</td><td>Not inspected.</td></tr>
+    <tr><td>Push notification tokens</td><td>Never accessed.</td></tr>
+  </table>
+
+  <h2>User ID hashing</h2>
+  <p>If you call <code>Monitoor.identify(userId:)</code>, the provided string is SHA-256 hashed on-device before it is stored or transmitted. The hash is a one-way function — neither Monitoor nor the ingest server can reverse it to obtain the original ID.</p>
+
+  <pre><code><span class="cm">// What you pass:</span>
+<span class="tp">Monitoor</span>.<span class="fn">identify</span>(<span class="pm">userId</span>: <span class="str">"user-12345"</span>)
+
+<span class="cm">// What is sent in the event:</span>
+<span class="cm">// "user_id_hash": "592a3b8f3ea3c..."  (SHA-256 hex)</span>
+<span class="cm">// "user-12345" never leaves the device in plaintext</span>
+</code></pre>
+
+  <h2>App Store privacy manifest</h2>
+  <p>The SDK does <strong>not</strong> require any entries in your app's <code>PrivacyInfo.xcprivacy</code> file. It does not use any of the APIs listed under <code>NSPrivacyAccessedAPITypes</code>.</p>
+
+  <h2>App Tracking Transparency</h2>
+  <p>The SDK never accesses <code>ASIdentifierManager</code> or any advertising identifier. Your app does <strong>not</strong> need to request ATT permission to use MonitoorSDK.</p>
+
+  <h2>GDPR — data deletion</h2>
+  <p>To delete all data associated with a device under a right-to-erasure request, run the following against your Neon database:</p>
+
+  <pre><code><span class="cm">-- Delete all events for a specific device</span>
+<span class="kw">DELETE FROM</span> <span class="str">"Event"</span>
+<span class="kw">WHERE</span> <span class="str">"deviceId"</span> = <span class="str">'the-device-uuid'</span>
+    <span class="kw">AND</span> <span class="str">"apiKeyId"</span> = <span class="str">'your-api-key-id'</span>;
+</code></pre>
+
+  <p>Because <code>device_id</code> is not linked to any Apple identifier or real-world identity, this satisfies GDPR deletion requirements without needing to know who the user is.</p>
+
+  <h2>Children's privacy (COPPA)</h2>
+  <p>The SDK collects no information that would classify as personal information for children under COPPA. It does not collect name, address, email, phone number, geolocation, or photo. If your app targets children, you can use MonitoorSDK without triggering COPPA-specific restrictions.</p>
+
+  <hr class="divider">
+  <p>Next: <a href="api-reference.html">API Reference →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>

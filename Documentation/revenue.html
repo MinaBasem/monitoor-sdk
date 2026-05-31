@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revenue — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item active" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> Revenue</div>
+  <div class="page-eyebrow">Tracking</div>
+  <h1 class="page-title">Revenue Tracking</h1>
+  <p class="page-lead">Track purchases and subscriptions to measure your app's revenue. StoreKit 2 transactions are captured automatically. StoreKit 1 and any non-StoreKit payments are tracked with a single manual call.</p>
+
+  <h2>StoreKit 2 — automatic</h2>
+  <p>When <code>captureRevenue: true</code> (the default), the SDK subscribes to <code>Transaction.updates</code> at startup. Every verified transaction is captured automatically — no additional code required.</p>
+
+  <pre><code><span class="cm">// This is handled automatically by the SDK.
+// No code required in your app for StoreKit 2.</span>
+<span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+    <span class="pm">apiKey</span>: <span class="str">"mn_live_..."</span>,
+    <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(
+        <span class="pm">captureRevenue</span>: <span class="nm">true</span>  <span class="cm">// default — StoreKit 2 auto-capture active</span>
+    )
+)
+</code></pre>
+
+  <p>Each captured transaction produces a <code>$revenue</code> event with these properties:</p>
+  <table>
+    <tr><th>Property</th><th>Type</th><th>Example</th></tr>
+    <tr><td><code>product_id</code></td><td>String</td><td><code>com.example.premium_annual</code></td></tr>
+    <tr><td><code>type</code></td><td>String</td><td><code>subscription</code>, <code>one_time</code>, <code>consumable</code></td></tr>
+    <tr><td><code>transaction_id</code></td><td>String</td><td><code>2000000123456789</code></td></tr>
+    <tr><td><code>amount</code></td><td>Double</td><td><code>49.99</code></td></tr>
+    <tr><td><code>currency</code></td><td>String</td><td><code>USD</code></td></tr>
+  </table>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body"><strong>Deduplication.</strong> Every revenue event carries a <code>transaction_id</code>. Duplicate transmissions of the same transaction are silently dropped by the ingest service via <code>ON CONFLICT DO NOTHING</code>.</div>
+  </div>
+
+  <h2>StoreKit 1 — manual</h2>
+  <p>Call <code>Monitoor.trackRevenue()</code> inside your <code>SKPaymentTransactionObserver</code> after a successful transaction:</p>
+
+  <pre><code><span class="kw">extension</span> <span class="tp">StoreManager</span>: <span class="tp">SKPaymentTransactionObserver</span> {
+
+    <span class="kw">func</span> <span class="fn">paymentQueue</span>(
+        <span class="pm">_</span> queue: <span class="tp">SKPaymentQueue</span>,
+        <span class="pm">updatedTransactions</span> transactions: [<span class="tp">SKPaymentTransaction</span>]
+    ) {
+        <span class="kw">for</span> transaction <span class="kw">in</span> transactions {
+            <span class="kw">switch</span> transaction.transactionState {
+            <span class="kw">case</span> .purchased:
+                <span class="tp">Monitoor</span>.<span class="fn">trackRevenue</span>(
+                    <span class="pm">productId</span>:     transaction.payment.productIdentifier,
+                    <span class="pm">amount</span>:        product.price.<span class="fn">doubleValue</span>,
+                    <span class="pm">currency</span>:      <span class="tp">Locale</span>.current.currency?.identifier ?? <span class="str">"USD"</span>,
+                    <span class="pm">type</span>:          .subscription,
+                    <span class="pm">transactionId</span>: transaction.transactionIdentifier ?? <span class="str">""</span>
+                )
+                queue.<span class="fn">finishTransaction</span>(transaction)
+            <span class="kw">default</span>:
+                <span class="kw">break</span>
+            }
+        }
+    }
+}
+</code></pre>
+
+  <h2>Non-StoreKit purchases</h2>
+  <p>For payments processed outside StoreKit (web purchases, server-side billing, etc.), call <code>trackRevenue()</code> with your own identifiers:</p>
+
+  <pre><code><span class="cm">// After a successful server-side payment</span>
+<span class="kw">func</span> <span class="fn">onPaymentConfirmed</span>(receipt: <span class="tp">PaymentReceipt</span>) {
+    <span class="tp">Monitoor</span>.<span class="fn">trackRevenue</span>(
+        <span class="pm">productId</span>:     receipt.productId,
+        <span class="pm">amount</span>:        receipt.amount,
+        <span class="pm">currency</span>:      receipt.currency,
+        <span class="pm">type</span>:          .subscription,
+        <span class="pm">transactionId</span>: receipt.id
+    )
+}
+</code></pre>
+
+  <h2>RevenueType values</h2>
+  <table>
+    <tr><th>Value</th><th>Use for</th></tr>
+    <tr><td><code>.subscription</code></td><td>Auto-renewable subscriptions (monthly, annual)</td></tr>
+    <tr><td><code>.oneTime</code></td><td>Non-consumable one-time purchases (premium unlock, lifetime access)</td></tr>
+    <tr><td><code>.consumable</code></td><td>Consumable items (credits, coins, tokens)</td></tr>
+  </table>
+
+  <h2>Querying revenue data</h2>
+  <pre><code><span class="cm">-- Total revenue by product in the last 30 days</span>
+<span class="kw">SELECT</span>
+    properties->><span class="str">'product_id'</span>   <span class="kw">AS</span> product,
+    properties->><span class="str">'currency'</span>     <span class="kw">AS</span> currency,
+    <span class="fn">COUNT</span>(*)                       <span class="kw">AS</span> transactions,
+    <span class="fn">SUM</span>((properties->><span class="str">'amount'</span>)::<span class="tp">float</span>) <span class="kw">AS</span> total
+<span class="kw">FROM</span> <span class="str">"Event"</span>
+<span class="kw">WHERE</span>
+    name = <span class="str">'$revenue'</span>
+    <span class="kw">AND</span> <span class="str">"occurredAt"</span> > <span class="fn">NOW</span>() - <span class="kw">INTERVAL</span> <span class="str">'30 days'</span>
+<span class="kw">GROUP BY</span> product, currency
+<span class="kw">ORDER BY</span> total <span class="kw">DESC</span>;
+</code></pre>
+
+  <hr class="divider">
+  <p>Next: <a href="crashes.html">Crash Reporting →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>

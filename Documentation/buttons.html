@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Button Tracking — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item active" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> Button Tracking</div>
+  <div class="page-eyebrow">Tracking</div>
+  <h1 class="page-title">Button Tracking</h1>
+  <p class="page-lead">The fastest way to count button presses. Add a single modifier or swap one class — no changes to your existing action logic required.</p>
+
+  <h2>SwiftUI — <code>.monitoorTap()</code></h2>
+  <p>Add <code>.monitoorTap("event_name")</code> to any tappable SwiftUI view. It fires a <code>simultaneousGesture</code> alongside the view's own tap action, so your existing logic is completely unaffected.</p>
+
+  <h3>Basic usage</h3>
+  <pre><code><span class="tp">Button</span>(<span class="str">"Subscribe"</span>) {
+    <span class="fn">startSubscription</span>()
+}
+.<span class="fn">monitoorTap</span>(<span class="str">"subscribe_tapped"</span>)
+</code></pre>
+
+  <h3>With properties</h3>
+  <pre><code><span class="tp">Button</span>(<span class="str">"Buy Premium"</span>) {
+    <span class="fn">purchase</span>()
+}
+.<span class="fn">monitoorTap</span>(<span class="str">"buy_premium_tapped"</span>, <span class="pm">properties</span>: [
+    <span class="str">"plan"</span>:   <span class="str">"annual"</span>,
+    <span class="str">"price"</span>:  <span class="nm">49.99</span>
+])
+</code></pre>
+
+  <h3>On destructive buttons</h3>
+  <pre><code><span class="tp">Button</span>(<span class="str">"Delete Account"</span>, <span class="pm">role</span>: .destructive) {
+    <span class="fn">deleteAccount</span>()
+}
+.<span class="fn">monitoorTap</span>(<span class="str">"delete_account_tapped"</span>, <span class="pm">properties</span>: [<span class="str">"source"</span>: <span class="str">"settings"</span>])
+</code></pre>
+
+  <h3>On buttons inside a List / ForEach</h3>
+  <pre><code><span class="tp">ForEach</span>(playlists) { playlist <span class="kw">in</span>
+    <span class="tp">Button</span> { <span class="fn">play</span>(playlist) } <span class="pm">label</span>: {
+        <span class="tp">PlaylistRow</span>(playlist: playlist)
+    }
+    .<span class="fn">monitoorTap</span>(<span class="str">"playlist_played"</span>, <span class="pm">properties</span>: [
+        <span class="str">"name"</span>: playlist.name,
+        <span class="str">"track_count"</span>: playlist.tracks.count
+    ])
+}
+</code></pre>
+
+  <h3>On non-Button tappable views</h3>
+  <p><code>.monitoorTap()</code> works on any view, not just <code>Button</code>. Attach it after <code>.onTapGesture</code>:</p>
+  <pre><code><span class="cm">// Image tap</span>
+<span class="tp">Image</span>(<span class="pm">systemName</span>: <span class="str">"heart"</span>)
+    .<span class="fn">onTapGesture</span> { <span class="fn">toggleLike</span>() }
+    .<span class="fn">monitoorTap</span>(<span class="str">"post_liked"</span>)
+
+<span class="cm">// Card tap</span>
+<span class="tp">NowPlayingCard</span>(track: track)
+    .<span class="fn">onTapGesture</span> { <span class="fn">openNowPlaying</span>() }
+    .<span class="fn">monitoorTap</span>(<span class="str">"now_playing_opened"</span>, <span class="pm">properties</span>: [<span class="str">"source"</span>: <span class="str">"hero_card"</span>])
+
+<span class="cm">// NavigationLink</span>
+<span class="tp">NavigationLink</span>(<span class="pm">value</span>: playlist.id) {
+    <span class="tp">PlaylistTile</span>(playlist: playlist)
+}
+.<span class="fn">monitoorTap</span>(<span class="str">"playlist_opened"</span>, <span class="pm">properties</span>: [<span class="str">"name"</span>: playlist.name])
+</code></pre>
+
+  <h3>On tab bar items</h3>
+  <pre><code><span class="kw">ForEach</span>(tabs, <span class="pm">id</span>: \.label) { tab <span class="kw">in</span>
+    <span class="tp">Button</span> {
+        selectedTab = tab
+    } <span class="pm">label</span>: {
+        <span class="tp">TabItemView</span>(tab: tab, isActive: selectedTab == tab)
+    }
+    .<span class="fn">monitoorTap</span>(<span class="str">"tab_switched"</span>, <span class="pm">properties</span>: [<span class="str">"tab"</span>: tab.label.<span class="fn">lowercased</span>()])
+}
+</code></pre>
+
+  <h3>Conditional tracking</h3>
+  <pre><code><span class="cm">// Track liked vs unliked state at the moment of the tap</span>
+<span class="tp">Button</span> { <span class="fn">toggleLike</span>(track) } <span class="pm">label</span>: {
+    <span class="tp">Image</span>(<span class="pm">systemName</span>: liked ? <span class="str">"heart.fill"</span> : <span class="str">"heart"</span>)
+}
+.<span class="fn">monitoorTap</span>(liked ? <span class="str">"track_unliked"</span> : <span class="str">"track_liked"</span>)
+</code></pre>
+
+  <hr class="divider">
+
+  <h2>UIKit — <code>MonitoorButton</code> subclass</h2>
+  <p>A drop-in replacement for <code>UIButton</code>. Tracks every <code>.touchUpInside</code> automatically.</p>
+
+  <h3>Programmatic creation</h3>
+  <pre><code><span class="kw">let</span> buyButton = <span class="tp">MonitoorButton</span>(
+    <span class="pm">eventName</span>: <span class="str">"buy_premium_tapped"</span>
+)
+
+<span class="kw">let</span> deleteButton = <span class="tp">MonitoorButton</span>(
+    <span class="pm">eventName</span>: <span class="str">"delete_account_tapped"</span>,
+    <span class="pm">properties</span>: [<span class="str">"source"</span>: <span class="str">"profile_screen"</span>]
+)
+</code></pre>
+
+  <h3>Changing the event name at runtime</h3>
+  <pre><code><span class="kw">let</span> playButton = <span class="tp">MonitoorButton</span>(<span class="pm">eventName</span>: <span class="str">"track_played"</span>)
+
+<span class="cm">// Update when the playing state changes</span>
+playButton.trackingEventName   = isPlaying ? <span class="str">"track_paused"</span> : <span class="str">"track_played"</span>
+playButton.trackingProperties  = [<span class="str">"title"</span>: currentTrack.title]
+</code></pre>
+
+  <h3>In Interface Builder / Storyboards</h3>
+  <p>In the Identity Inspector, change the button's class from <code>UIButton</code> to <code>MonitoorButton</code>. Then set <code>trackingEventName</code> in <code>viewDidLoad</code>:</p>
+  <pre><code><span class="kw">@IBOutlet</span> <span class="kw">weak var</span> subscribeButton: <span class="tp">MonitoorButton</span>!
+
+<span class="kw">override func</span> <span class="fn">viewDidLoad</span>() {
+    <span class="kw">super</span>.<span class="fn">viewDidLoad</span>()
+    subscribeButton.trackingEventName  = <span class="str">"subscribe_tapped"</span>
+    subscribeButton.trackingProperties = [<span class="str">"plan"</span>: currentPlan]
+}
+</code></pre>
+
+  <hr class="divider">
+
+  <h2>UIKit — <code>.monitoor_trackTaps()</code> extension</h2>
+  <p>Use this when you can't change the button's class — for example, buttons in third-party views or system-provided controls.</p>
+
+  <pre><code><span class="cm">// Attach tracking to any existing UIButton in viewDidLoad</span>
+<span class="kw">override func</span> <span class="fn">viewDidLoad</span>() {
+    <span class="kw">super</span>.<span class="fn">viewDidLoad</span>()
+
+    signInButton.<span class="fn">monitoor_trackTaps</span>(<span class="pm">eventName</span>: <span class="str">"sign_in_tapped"</span>)
+
+    shareButton.<span class="fn">monitoor_trackTaps</span>(
+        <span class="pm">eventName</span>: <span class="str">"share_tapped"</span>,
+        <span class="pm">properties</span>: [<span class="str">"screen"</span>: <span class="str">"profile"</span>]
+    )
+}
+</code></pre>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">The tracker object created by <code>monitoor_trackTaps()</code> is stored as an associated object on the button and is released automatically when the button is deallocated. You don't need to keep a reference to it.</div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Choosing the right approach</h2>
+  <table>
+    <tr><th>Situation</th><th>Recommended approach</th></tr>
+    <tr><td>SwiftUI <code>Button</code>, <code>NavigationLink</code>, or any tappable view</td><td><code>.monitoorTap()</code> modifier</td></tr>
+    <tr><td>New UIKit button, programmatic</td><td><code>MonitoorButton</code> subclass</td></tr>
+    <tr><td>Existing UIKit button, can change class</td><td><code>MonitoorButton</code> in Identity Inspector</td></tr>
+    <tr><td>UIKit button you cannot subclass</td><td><code>.monitoor_trackTaps()</code> extension</td></tr>
+    <tr><td>Button inside a 3rd-party component</td><td><code>.monitoor_trackTaps()</code> or <code>Monitoor.track()</code> in the action</td></tr>
+  </table>
+
+  <hr class="divider">
+  <p>Next: <a href="screens.html">Screen Views →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>

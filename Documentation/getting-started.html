@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getting Started — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html">
+    <div class="logo-mark">M</div>
+    <div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div>
+  </a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item active" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main">
+<div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> Getting Started</div>
+  <div class="page-eyebrow">Setup Guide</div>
+  <h1 class="page-title">Getting Started</h1>
+  <p class="page-lead">Install the SDK, add your API key, and send your first events in under five minutes.</p>
+
+  <h2>Step 1 — Get your API key</h2>
+  <p>Sign up at <strong>monitoor.io</strong>, create a project, then go to <strong>API Keys</strong> and generate a key.</p>
+  <ul>
+    <li><strong>Production key</strong> — prefix <code>mn_live_</code> — use in App Store and TestFlight builds</li>
+    <li><strong>Development key</strong> — prefix <code>mn_dev_</code> — use in local development and the Simulator</li>
+  </ul>
+
+  <div class="callout callout-warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body"><strong>Key prefix must match environment.</strong> Using a <code>mn_live_</code> key with <code>environment: .development</code> (or vice versa) causes the SDK to refuse to start. The mismatch is logged to the console in DEBUG builds.</div>
+  </div>
+
+  <h2>Step 2 — Add the package in Xcode</h2>
+  <ol class="steps">
+    <li>
+      <strong>Open your project in Xcode.</strong>
+      Navigate to your <code>.xcodeproj</code> or <code>.xcworkspace</code>.
+    </li>
+    <li>
+      <strong>File → Add Package Dependencies…</strong>
+      The package dependency dialog opens.
+    </li>
+    <li>
+      <strong>Paste the repository URL into the search bar (top-right).</strong>
+      <pre><code>https://github.com/MinaBasem/monitoor-ios-sdk</code></pre>
+      Press <strong>Return</strong>. Xcode fetches the package manifest.
+    </li>
+    <li>
+      <strong>Set the dependency rule.</strong>
+      Choose <em>Up to Next Major Version</em> starting from <code>1.0.0</code>.
+    </li>
+    <li>
+      <strong>Click Add Package.</strong>
+      In the target selection sheet, tick your app target and click <strong>Add Package</strong>.
+    </li>
+  </ol>
+
+  <p><code>MonitoorSDK</code> now appears under <strong>Package Dependencies</strong> in the Project Navigator.</p>
+
+  <h2>Step 3 — Initialize the SDK</h2>
+  <p>Call <code>Monitoor.configure()</code> once, as early as possible in your app's lifecycle — before any view appears.</p>
+
+  <h3>SwiftUI</h3>
+  <pre><code><span class="kw">import</span> <span class="tp">SwiftUI</span>
+<span class="kw">import</span> <span class="tp">MonitoorSDK</span>
+
+<span class="kw">@main</span>
+<span class="kw">struct</span> <span class="tp">MyApp</span>: <span class="tp">App</span> {
+
+    <span class="kw">init</span>() {
+        <span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+            <span class="pm">apiKey</span>: <span class="str">"mn_live_your_key_here"</span>,
+            <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(<span class="pm">environment</span>: .production)
+        )
+    }
+
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="tp">Scene</span> {
+        <span class="tp">WindowGroup</span> { <span class="tp">ContentView</span>() }
+    }
+}
+</code></pre>
+
+  <h3>UIKit — AppDelegate</h3>
+  <pre><code><span class="kw">import</span> <span class="tp">UIKit</span>
+<span class="kw">import</span> <span class="tp">MonitoorSDK</span>
+
+<span class="kw">@UIApplicationMain</span>
+<span class="kw">class</span> <span class="tp">AppDelegate</span>: <span class="tp">UIResponder</span>, <span class="tp">UIApplicationDelegate</span> {
+
+    <span class="kw">func</span> <span class="fn">application</span>(
+        <span class="pm">_</span> application: <span class="tp">UIApplication</span>,
+        <span class="pm">didFinishLaunchingWithOptions</span> launchOptions: [<span class="tp">UIApplication.LaunchOptionsKey</span>: <span class="tp">Any</span>]?
+    ) -> <span class="tp">Bool</span> {
+
+        <span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+            <span class="pm">apiKey</span>: <span class="str">"mn_live_your_key_here"</span>,
+            <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(<span class="pm">environment</span>: .production)
+        )
+
+        <span class="kw">return</span> <span class="nm">true</span>
+    }
+}
+</code></pre>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body"><strong>Configure only once.</strong> Calling <code>Monitoor.configure()</code> more than once is silently ignored. Only the first call takes effect.</div>
+  </div>
+
+  <h2>Step 4 — Verify it's working</h2>
+  <p>On first launch after configuring, the SDK automatically sends a <code>$app_open</code> event. To confirm events are reaching the database:</p>
+  <ol>
+    <li>Start the ingest server: <code>python3 server.py</code> in the <code>ingest-server/</code> folder.</li>
+    <li>Build and run your app on a device or Simulator.</li>
+    <li>Within 20 seconds, check the <code>Event</code> table in Neon — you should see a <code>$app_open</code> row.</li>
+  </ol>
+
+  <p>In DEBUG builds, the SDK logs to the console. Look for <code>[Monitoor]</code> prefixed messages.</p>
+
+  <h2>Development vs production setup</h2>
+  <p>During development, point the SDK at your local ingest server instead of the production URL:</p>
+
+  <pre><code><span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+    <span class="pm">apiKey</span>: <span class="str">"mn_dev_your_dev_key"</span>,
+    <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(
+        <span class="pm">ingestURL</span>: <span class="tp">URL</span>(<span class="pm">string</span>: <span class="str">"http://192.168.1.42:8080"</span>)!,
+        <span class="pm">environment</span>: .development
+    )
+)
+</code></pre>
+
+  <div class="callout callout-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <strong>Finding your Mac's IP:</strong> Run <code>ipconfig getifaddr en0</code> in Terminal. Your iPhone and Mac must be on the same Wi-Fi network. For the Simulator, use <code>http://localhost:8080</code> instead.
+    </div>
+  </div>
+
+  <h2>SwiftUI Previews</h2>
+  <p>Guard the configure call so it doesn't fire inside Xcode previews:</p>
+
+  <pre><code><span class="kw">init</span>() {
+    <span class="kw">guard</span> !<span class="tp">ProcessInfo</span>.processInfo.environment.keys
+        .<span class="fn">contains</span>(<span class="str">"XCODE_RUNNING_FOR_PREVIEWS"</span>)
+    <span class="kw">else</span> { <span class="kw">return</span> }
+
+    <span class="tp">Monitoor</span>.<span class="fn">configure</span>(
+        <span class="pm">apiKey</span>: <span class="str">"mn_dev_your_dev_key"</span>,
+        <span class="pm">options</span>: <span class="tp">MonitoorOptions</span>(<span class="pm">environment</span>: .development)
+    )
+}
+</code></pre>
+
+  <h2>What happens on configure()</h2>
+  <p>When <code>Monitoor.configure()</code> is called, the SDK performs the following in order:</p>
+  <ol>
+    <li>Validates the API key prefix against the specified environment.</li>
+    <li>Loads or generates a persistent <code>device_id</code> UUID from the iOS Keychain.</li>
+    <li>Opens the local SQLite event buffer in WAL mode.</li>
+    <li>Uploads any pending crash reports from the previous launch.</li>
+    <li>Installs crash signal handlers (if <code>captureCrashes: true</code>).</li>
+    <li>Starts the StoreKit 2 transaction observer (if <code>captureRevenue: true</code>).</li>
+    <li>Installs the UIViewController swizzle for automatic screen tracking (if <code>captureScreens: true</code>).</li>
+    <li>Registers app lifecycle observers (foreground, background, terminate).</li>
+    <li>Starts the flush timer.</li>
+    <li>Enqueues a <code>$app_open</code> event.</li>
+  </ol>
+
+  <hr class="divider">
+  <p>Next: <a href="configuration.html">Configuration →</a></p>
+
+</div>
+</main>
+</div>
+</body>
+</html>

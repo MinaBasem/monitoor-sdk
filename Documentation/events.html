@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Events — MonitoorSDK</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html"><div class="logo-mark">M</div><div><span>MonitoorSDK</span><small>iOS · v1.0.0</small></div></a>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span>Introduction</a>
+    <a class="nav-item" href="getting-started.html"><span class="icon">🚀</span>Getting Started</a>
+    <a class="nav-item" href="configuration.html"><span class="icon">⚙️</span>Configuration</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Tracking</div>
+    <a class="nav-item active" href="events.html"><span class="icon">📡</span>Events</a>
+    <a class="nav-item" href="buttons.html"><span class="icon">👆</span>Button Presses</a>
+    <a class="nav-item" href="screens.html"><span class="icon">📱</span>Screen Views</a>
+    <a class="nav-item" href="sessions.html"><span class="icon">⏱️</span>Sessions</a>
+    <a class="nav-item" href="revenue.html"><span class="icon">💰</span>Revenue</a>
+    <a class="nav-item" href="crashes.html"><span class="icon">💥</span>Crash Reporting</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Identity</div>
+    <a class="nav-item" href="identity.html"><span class="icon">👤</span>User Identity</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a class="nav-item" href="how-it-works.html"><span class="icon">🔧</span>How It Works</a>
+    <a class="nav-item" href="privacy.html"><span class="icon">🔒</span>Privacy</a>
+    <a class="nav-item" href="api-reference.html"><span class="icon">📖</span>API Reference</a>
+  </div>
+</nav>
+<main class="main"><div class="content">
+
+  <div class="breadcrumb"><a href="index.html">MonitoorSDK</a> <span>›</span> Events</div>
+  <div class="page-eyebrow">Tracking</div>
+  <h1 class="page-title">Event Tracking</h1>
+  <p class="page-lead">Track any user action or application state change as a named event with optional properties. Events are the core data type in Monitoor — everything from button taps to purchases is ultimately an event.</p>
+
+  <h2>Basic event</h2>
+  <p>Call <code>Monitoor.track()</code> with a name to record that something happened.</p>
+  <pre><code><span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"song_played"</span>)
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"onboarding_completed"</span>)
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"settings_opened"</span>)
+</code></pre>
+
+  <h2>Event with properties</h2>
+  <p>Attach a dictionary of properties to give the event context. Property values can be <code>String</code>, <code>Int</code>, <code>Double</code>, or <code>Bool</code>.</p>
+  <pre><code><span class="cm">// String properties</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"song_played"</span>, <span class="pm">properties</span>: [
+    <span class="str">"title"</span>: <span class="str">"Midnight Run"</span>,
+    <span class="str">"artist"</span>: <span class="str">"Neon Atlas"</span>,
+    <span class="str">"source"</span>: <span class="str">"library"</span>
+])
+
+<span class="cm">// Mixed property types</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"search_performed"</span>, <span class="pm">properties</span>: [
+    <span class="str">"query"</span>:         searchText,
+    <span class="str">"results_count"</span>: results.count,    <span class="cm">// Int</span>
+    <span class="str">"used_filters"</span>:  filtersActive      <span class="cm">// Bool</span>
+])
+
+<span class="cm">// E-commerce / subscription</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"plan_selected"</span>, <span class="pm">properties</span>: [
+    <span class="str">"plan"</span>:         <span class="str">"pro_annual"</span>,
+    <span class="str">"price"</span>:        <span class="nm">49.99</span>,            <span class="cm">// Double</span>
+    <span class="str">"trial_active"</span>: <span class="nm">true</span>              <span class="cm">// Bool</span>
+])
+</code></pre>
+
+  <h2>Timed events</h2>
+  <p>Measure how long an operation takes by calling <code>startTimer()</code> at the start and <code>track()</code> with the same name at the end. The elapsed duration is automatically attached as <code>$duration</code> (seconds, as a <code>Double</code>).</p>
+
+  <pre><code><span class="cm">// Start the timer when the operation begins</span>
+<span class="tp">Monitoor</span>.<span class="fn">startTimer</span>(<span class="str">"onboarding_flow"</span>)
+
+<span class="cm">// ... user goes through onboarding ...</span>
+
+<span class="cm">// Track completion — $duration is attached automatically</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"onboarding_flow"</span>)
+<span class="cm">// → event contains "$duration": 47.3</span>
+</code></pre>
+
+  <pre><code><span class="cm">// Timer with additional properties</span>
+<span class="tp">Monitoor</span>.<span class="fn">startTimer</span>(<span class="str">"file_import"</span>)
+
+<span class="cm">// ... import completes ...</span>
+
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"file_import"</span>, <span class="pm">properties</span>: [
+    <span class="str">"file_count"</span>: importedFiles.count,
+    <span class="str">"format"</span>:     <span class="str">"mp3"</span>
+])
+<span class="cm">// → event contains "$duration": 1.24, "file_count": 5, "format": "mp3"</span>
+</code></pre>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">Multiple timers can run simultaneously. Each timer is keyed by event name and consumes itself when <code>track()</code> is called — calling <code>track()</code> a second time with the same name will not attach a duration unless you call <code>startTimer()</code> again.</div>
+  </div>
+
+  <h2>Where to call track()</h2>
+  <p>Call <code>Monitoor.track()</code> anywhere in your app code. It is thread-safe and safe to call from any queue.</p>
+
+  <pre><code><span class="cm">// In a button action</span>
+<span class="tp">Button</span>(<span class="str">"Delete"</span>) {
+    model.delete(item)
+    <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"item_deleted"</span>, <span class="pm">properties</span>: [<span class="str">"id"</span>: item.id])
+}
+
+<span class="cm">// In a view model</span>
+<span class="kw">func</span> <span class="fn">submitForm</span>() {
+    <span class="kw">guard</span> <span class="fn">isValid</span>() <span class="kw">else</span> {
+        <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"form_validation_failed"</span>)
+        <span class="kw">return</span>
+    }
+    <span class="fn">submit</span>()
+    <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"form_submitted"</span>)
+}
+
+<span class="cm">// In an async context</span>
+<span class="kw">func</span> <span class="fn">loadFeed</span>() <span class="kw">async</span> {
+    <span class="tp">Monitoor</span>.<span class="fn">startTimer</span>(<span class="str">"feed_load"</span>)
+    <span class="kw">let</span> items = <span class="kw">await</span> api.<span class="fn">fetchFeed</span>()
+    <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"feed_load"</span>, <span class="pm">properties</span>: [<span class="str">"count"</span>: items.count])
+}
+
+<span class="cm">// In a SwiftUI .onChange or .onAppear</span>
+<span class="tp">List</span>(items) { item <span class="kw">in</span> <span class="tp">ItemRow</span>(item: item) }
+    .<span class="fn">onChange</span>(of: filter) { _, newFilter <span class="kw">in</span>
+        <span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"filter_changed"</span>, <span class="pm">properties</span>: [<span class="str">"filter"</span>: newFilter.rawValue])
+    }
+</code></pre>
+
+  <h2>Event naming conventions</h2>
+  <p>Consistent naming makes your dashboard far more useful. Follow these rules:</p>
+  <table>
+    <tr><th>Rule</th><th>Good</th><th>Avoid</th></tr>
+    <tr><td>Use <code>snake_case</code></td><td><code>song_played</code></td><td><code>SongPlayed</code>, <code>song-played</code></td></tr>
+    <tr><td>Use <code>noun_verb</code> or <code>noun_action</code></td><td><code>playlist_created</code></td><td><code>created_playlist</code></td></tr>
+    <tr><td>Be specific</td><td><code>mini_player_tapped</code></td><td><code>button_tapped</code></td></tr>
+    <tr><td>Past tense for completed actions</td><td><code>purchase_completed</code></td><td><code>purchase_complete</code></td></tr>
+    <tr><td>Reserve <code>$</code> prefix for system events</td><td>—</td><td><code>$my_event</code></td></tr>
+  </table>
+
+  <h2>System events</h2>
+  <p>The SDK automatically sends these events — you do not call <code>track()</code> for them:</p>
+  <table>
+    <tr><th>Event name</th><th>When</th><th>Properties</th></tr>
+    <tr><td><code>$app_open</code></td><td>App launches or returns to foreground after a new session starts</td><td>—</td></tr>
+    <tr><td><code>$app_background</code></td><td>App moves to the background</td><td><code>$session_duration_s</code></td></tr>
+    <tr><td><code>$screen_view</code></td><td>UIViewController appears, or <code>.monitoorScreen()</code> fires</td><td><code>$screen_name</code></td></tr>
+    <tr><td><code>$revenue</code></td><td>StoreKit 2 transaction or manual <code>trackRevenue()</code></td><td><code>product_id</code>, <code>amount</code>, <code>currency</code>, <code>type</code>, <code>transaction_id</code></td></tr>
+  </table>
+
+  <h2>Properties best practices</h2>
+  <ul>
+    <li>Keep property names in <code>snake_case</code> to match the event name convention.</li>
+    <li>Do not put PII (names, emails, phone numbers) in properties. Use <code>Monitoor.identify()</code> for user linkage instead.</li>
+    <li>Prefer discrete string values over free-text for properties you'll filter on (<code>"source": "library"</code>, not <code>"source": "user clicked from their music library"</code>).</li>
+    <li>Numeric properties (<code>Int</code>, <code>Double</code>) are stored as JSON numbers and can be aggregated in the dashboard.</li>
+  </ul>
+
+  <h2>Querying events</h2>
+  <p>All events land in the <code>Event</code> table in Neon. Properties are stored as <code>JSONB</code>, enabling flexible queries:</p>
+  <pre><code><span class="cm">-- Count plays per artist in the last 7 days</span>
+<span class="kw">SELECT</span>
+    properties->><span class="str">'artist'</span> <span class="kw">AS</span> artist,
+    <span class="fn">COUNT</span>(*) <span class="kw">AS</span> plays
+<span class="kw">FROM</span> <span class="str">"Event"</span>
+<span class="kw">WHERE</span>
+    name = <span class="str">'song_played'</span>
+    <span class="kw">AND</span> <span class="str">"occurredAt"</span> > <span class="fn">NOW</span>() - <span class="kw">INTERVAL</span> <span class="str">'7 days'</span>
+<span class="kw">GROUP BY</span> artist
+<span class="kw">ORDER BY</span> plays <span class="kw">DESC</span>;
+</code></pre>
+
+  <hr class="divider">
+  <p>Next: <a href="buttons.html">Button Tracking →</a></p>
+
+</div></main>
+</div>
+</body>
+</html>
