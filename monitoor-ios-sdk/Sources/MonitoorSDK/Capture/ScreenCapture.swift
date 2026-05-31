@@ -20,19 +20,13 @@ extension UIViewController {
 
     @objc func monitoor_viewDidAppear(_ animated: Bool) {
         monitoor_viewDidAppear(animated) // calls original implementation due to swizzle
-        // Skip system containers that aren't real screens.
-        let excluded: Set<String> = [
-            "UINavigationController",
-            "UITabBarController",
-            "UIPageViewController",
-            "UISplitViewController",
-            "UIInputViewController",
-            "UIAlertController",
-        ]
-        let className = String(describing: type(of: self))
-        guard !excluded.contains(className) else { return }
 
-        let screenName = className
+        // Only track view controllers defined in the app's own bundle.
+        // This filters out every internal Apple/SwiftUI class (UIKitNavigationController,
+        // _UIHostingController, etc.) without needing an explicit exclusion list.
+        guard Bundle(for: type(of: self)) == Bundle.main else { return }
+
+        let screenName = String(describing: type(of: self))
             .replacingOccurrences(of: "ViewController", with: "")
             .replacingOccurrences(of: "Controller", with: "")
             .replacingOccurrences(of: "VC", with: "")
