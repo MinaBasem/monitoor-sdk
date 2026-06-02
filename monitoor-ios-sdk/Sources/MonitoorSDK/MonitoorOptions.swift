@@ -48,7 +48,7 @@ public struct MonitoorOptions: Sendable {
     /// Seconds between scheduled flush timer fires. Default: 20.
     public var flushInterval: TimeInterval
 
-    /// Maximum events per HTTP request. Default: 50.
+    /// Maximum events per HTTP request. Default: 10.
     public var flushBatchSize: Int
 
     /// Session inactivity timeout. Default: 30 minutes.
@@ -69,7 +69,7 @@ public struct MonitoorOptions: Sendable {
         sampleRate: Double = 1.0,
         retentionDays: Int = 90,
         flushInterval: TimeInterval = 30,
-        flushBatchSize: Int = 50,
+        flushBatchSize: Int = 10,
         sessionTimeout: TimeInterval = 30 * 60
     ) {
         self.ingestURL       = ingestURL
