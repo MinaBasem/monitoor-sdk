@@ -21,19 +21,10 @@ Parameters:
     NoEcho: true
     Default: ""
     Description: >
-      Neon Management API key. Required only when NeonSuspendAfterIngest=true.
-      Obtain from: console.neon.tech → Account → API Keys.
-
-  NeonSuspendAfterIngest:
-    Type: String
-    Default: "false"
-    AllowedValues:
-      - "true"
-      - "false"
-    Description: >
-      When "true", the Lambda suspends the Neon compute endpoint after each
-      successful ingest. All DB writes complete before the suspend call is made.
-      Only recommended for low-traffic or development environments — see LAMBDA.md.
+      Neon Management API key — used to suspend compute when all active Lambda
+      invocations finish. Obtain from: console.neon.tech → Account → API Keys.
+      If left blank, suspension is skipped and Neon falls back to its built-in
+      5-minute idle timeout.
 
   StageName:
     Type: String
@@ -51,7 +42,6 @@ Globals:
         NEON_URL: !Ref NeonUrl
         NEON_CONNECTION_STR: !Ref NeonConnectionStr
         NEON_API_KEY: !Ref NeonApiKey
-        NEON_SUSPEND_AFTER_INGEST: !Ref NeonSuspendAfterIngest
 
 # ── Resources ──────────────────────────────────────────────────────────────────
 Resources:

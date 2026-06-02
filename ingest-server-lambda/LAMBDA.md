@@ -16,8 +16,8 @@ iOS SDK  ──HTTPS──►  API Gateway  ──event dict──►  Lambda (h
 
 1. The iOS SDK sends a `POST /v1/ingest` request with a JSON batch of events and a `Bearer` API key.
 2. **API Gateway** receives the request, wraps it into a structured event dict (method, path, headers, body, base64 flag), and invokes the Lambda function synchronously.
-3. **`handler.lambda_handler`** unpacks the event, authenticates the API key against the Neon `ApiKey` table, validates each event, and inserts accepted events one-by-one via Neon's HTTP SQL API — using `ON CONFLICT ("idempotencyKey") DO NOTHING` for safe retries.
-4. Once all writes have committed, the function optionally suspends the Neon compute endpoint (see below), then returns a response dict which API Gateway converts back into an HTTP response.
+3. **`handler.lambda_handler`** increments a shared `active` counter in Neon, then authenticates the API key, validates each event, and inserts accepted events one-by-one via Neon's HTTP SQL API — using `ON CONFLICT ("idempotencyKey") DO NOTHING` for safe retries.
+4. Once all writes have committed, the function decrements the counter. If the counter reaches 0 (this is the last active invocation), it suspends the Neon compute endpoint. The response dict is then returned and API Gateway converts it back into an HTTP response.
 
 The function uses **only Python 3 stdlib** (`json`, `urllib`, `gzip`, `base64`, `datetime`) — no third-party dependencies and no layers needed.
 
@@ -50,8 +50,7 @@ Without API Gateway, the Lambda function is unreachable from the iOS SDK.
 |---|---|---|
 | `NEON_URL` | **Yes** | Neon HTTP SQL endpoint URL. Find it in the Neon console under your project → Connection Details → HTTP endpoint. Example: `https://ep-shiny-hat-al5rb3wf.neon.tech/sql` |
 | `NEON_CONNECTION_STR` | **Yes** | Full `postgresql://` connection string, including password. Passed as the `Neon-Connection-String` header on every SQL request. Example: `postgresql://neondb_owner:pass@ep-xxx.neon.tech/neondb?sslmode=require` |
-| `NEON_API_KEY` | Conditional | Neon Management API key. Only required when `NEON_SUSPEND_AFTER_INGEST=true`. Obtain from **console.neon.tech → Account → API Keys → New Key**. |
-| `NEON_SUSPEND_AFTER_INGEST` | No | Set to `"true"` to suspend the Neon compute endpoint after each successful ingest. Default: `"false"`. Read the section below before enabling. |
+| `NEON_API_KEY` | No | Neon Management API key. When set, the last active Lambda invocation automatically suspends Neon compute after all writes complete. Obtain from **console.neon.tech → Account → API Keys → New Key**. If not set, Neon falls back to its built-in idle timeout (5 minutes on the free tier). |
 
 Set these in the Lambda console (**Configuration → Environment variables**) or via the CloudFormation parameters in `template.yaml`. They are never written to disk or logged.
 
@@ -59,28 +58,45 @@ Set these in the Lambda console (**Configuration → Environment variables**) or
 
 ## Neon Compute Suspend
 
-When `NEON_SUSPEND_AFTER_INGEST=true`, the Lambda calls the Neon Management API to suspend the compute endpoint **after all DB writes have committed and before the HTTP response is returned**. This guarantees:
+### Prerequisites
 
-- No data loss — writes complete first, suspend request is made second.
-- The iOS SDK sees a normal `200` response either way; the suspend step is invisible to callers.
-- Neon silently ignores the suspend request if the endpoint is already idle.
+Before deploying, run `schema.sql` once against your Neon database:
 
-### When to enable
+```bash
+psql "$NEON_CONNECTION_STR" -f schema.sql
+```
 
-| Scenario | Recommendation |
-|---|---|
-| Development / staging with very low traffic | **Enable** — aggressively minimises compute billing when idle |
-| Production with steady or bursty traffic | **Disable** — use Neon's built-in 5-minute auto-suspend instead |
+This creates the `lambda_concurrency` table — a single row with an `active` integer counter that all Lambda invocations share.
 
-### Concurrency trade-off
+### How it works
 
-Lambda scales by running **parallel invocations**, not threads. If two requests arrive simultaneously, Lambda A and Lambda B each run as independent function instances. If Lambda A calls suspend while Lambda B is mid-write, Neon will stop the compute immediately and Lambda B's in-flight query will fail with a connection error.
+Every Lambda invocation increments the counter when it starts and decrements it when it finishes (via a `finally` block, so crashes don't leave it stuck). The invocation that brings the counter to **0** is the last one running — it waits 2 seconds to let any Lambda that started in the same instant register itself, rechecks the count, and if still 0 calls the Neon suspend API.
 
-**Mitigation options:**
-- Keep `NEON_SUSPEND_AFTER_INGEST=false` in production and rely on Neon's auto-suspend (5-minute idle timeout is already low cost).
-- Reserve `NEON_SUSPEND_AFTER_INGEST=true` for environments where concurrent requests are rare or impossible (e.g., a single-developer staging environment, or a scheduled batch trigger rather than real-time HTTP traffic).
+```
+Lambda A starts   →  active = 1
+Lambda B starts   →  active = 2
+Lambda C starts   →  active = 3
 
-The Neon auto-suspend timeout can be managed from `ingest-server/NEON.md`.
+Lambda B finishes →  active = 2  → others still running, exit
+Lambda A finishes →  active = 1  → others still running, exit
+Lambda C finishes →  active = 0  → last one → wait 2s → recheck → suspend Neon
+```
+
+The 2-second wait closes the race window where Lambda D could start in the same instant Lambda C decrements to 0. After the wait, Lambda C rechecks: if Lambda D registered, the count is 1 and Lambda C exits without suspending.
+
+### Guarantees
+
+- **No data loss** — all writes complete before the counter is decremented; suspend is called after.
+- **No stuck counter** — `finally` ensures decrement runs even if the handler throws. `GREATEST(active - 1, 0)` prevents the counter going negative from any edge case.
+- **Safe on Neon free tier** — Neon silently ignores suspend requests on already-idle endpoints. If `NEON_API_KEY` is not set, suspension is skipped entirely and Neon falls back to its 5-minute idle timeout.
+
+### Manual reset
+
+If a Lambda is killed by an AWS infrastructure event (rare), the counter may be left above 0. Reset it manually:
+
+```sql
+UPDATE lambda_concurrency SET active = 0;
+```
 
 ---
 
@@ -97,10 +113,13 @@ The Neon auto-suspend timeout can be managed from `ingest-server/NEON.md`.
 ```bash
 cd ingest-server-lambda
 
-# Build (packages handler.py into a deployment artifact)
+# 1. Run the schema migration once against your Neon database
+psql "$NEON_CONNECTION_STR" -f schema.sql
+
+# 2. Build (packages handler.py into a deployment artifact)
 sam build
 
-# Deploy interactively — prompts for parameters on first run, saves to samconfig.toml
+# 3. Deploy interactively — prompts for parameters on first run, saves to samconfig.toml
 sam deploy --guided
 ```
 
@@ -147,7 +166,7 @@ curl http://localhost:3000/health \
 | Entry point | `httpd.serve_forever()` long-running process | `lambda_handler(event, context)` per-request function |
 | Concurrency | `ThreadingMixIn` — multiple threads per process | Multiple Lambda instances — one thread per instance |
 | `.env` file | Loaded automatically from disk | Not used — env vars set in Lambda console / CloudFormation |
-| Neon suspend | Not applicable | Optional via `NEON_SUSPEND_AFTER_INGEST` |
+| Neon suspend | Not applicable | Automatic — last active invocation suspends via shared counter |
 | Deployment | EC2 / any server with Python 3 | AWS Lambda + API Gateway via SAM |
 | Business logic | Identical | Identical (same functions, same SQL) |
 

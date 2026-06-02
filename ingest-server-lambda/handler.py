@@ -6,17 +6,19 @@ Drop-in Lambda deployment of the ingest service.
 Requires no third-party packages — only Python 3 stdlib + the Neon HTTP SQL API.
 
 Environment variables (set in Lambda console or CloudFormation template):
-    NEON_URL                  Neon HTTP SQL endpoint
-    NEON_CONNECTION_STR       Full postgres:// connection string
-    NEON_API_KEY              Neon API key (required only if NEON_SUSPEND_AFTER_INGEST=true)
-    NEON_SUSPEND_AFTER_INGEST Set to "true" to suspend Neon compute after each successful
-                              ingest. Best suited for low-traffic or dev environments.
-                              See LAMBDA.md for concurrency trade-offs before enabling.
+    NEON_URL             Neon HTTP SQL endpoint
+    NEON_CONNECTION_STR  Full postgres:// connection string
+    NEON_API_KEY         Neon Management API key — used to suspend compute when
+                         the last active Lambda invocation finishes. Obtain from:
+                         console.neon.tech → Account → API Keys.
+                         If not set, suspend is skipped and Neon auto-suspends
+                         after its built-in idle timeout (5 min on free tier).
 """
 
 import base64
 import json
 import os
+import time
 import urllib.request
 import urllib.error
 import gzip
@@ -24,10 +26,9 @@ from datetime import datetime, timezone
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-NEON_URL  = os.environ.get("NEON_URL")
-NEON_CONN = os.environ.get("NEON_CONNECTION_STR")
+NEON_URL     = os.environ.get("NEON_URL")
+NEON_CONN    = os.environ.get("NEON_CONNECTION_STR")
 NEON_API_KEY = os.environ.get("NEON_API_KEY", "")
-NEON_SUSPEND_AFTER_INGEST = os.environ.get("NEON_SUSPEND_AFTER_INGEST", "false").lower() == "true"
 
 NEON_PROJECT_ID  = "sweet-silence-19487365"
 NEON_ENDPOINT_ID = "ep-shiny-hat-al5rb3wf"
@@ -203,17 +204,7 @@ def handle_ingest(bearer_token, body_bytes):
 # ── Neon compute suspend ───────────────────────────────────────────────────────
 
 def neon_suspend():
-    """
-    Suspend the Neon compute endpoint via the Neon Management API.
-
-    Called synchronously after all DB writes have committed, so data is never lost.
-    Neon ignores this request if the endpoint is already idle.
-
-    Important: only enable NEON_SUSPEND_AFTER_INGEST in low-concurrency environments.
-    If two Lambda invocations overlap, one may suspend the DB while the other is
-    mid-write. Neon's built-in auto-suspend (5-minute idle timeout) is the safer
-    alternative for production traffic.
-    """
+    """Call the Neon Management API to suspend the compute endpoint."""
     if not NEON_API_KEY:
         print("[suspend] NEON_API_KEY not set — skipping suspend")
         return
@@ -233,59 +224,99 @@ def neon_suspend():
         print(f"[suspend] Failed to suspend Neon compute: {e}")
 
 
+# ── Lambda concurrency tracking ────────────────────────────────────────────────
+
+def _increment_active():
+    """
+    Register this Lambda invocation in the shared counter stored in Neon.
+    Called at the very start of every invocation — including rejected ones —
+    so the count accurately reflects all in-flight Lambdas.
+    """
+    try:
+        neon_query("UPDATE lambda_concurrency SET active = active + 1")
+    except Exception as e:
+        print(f"[concurrency] increment failed: {e}")
+
+
+def _decrement_and_maybe_suspend():
+    """
+    Decrement the active counter. If this is the last running invocation
+    (counter reaches 0), wait 2 seconds to let any Lambda that started in
+    the same instant register itself, then recheck. If still 0, suspend Neon.
+
+    GREATEST(..., 0) prevents the counter going negative if a prior invocation
+    crashed before decrementing (e.g. Lambda timeout, OOM kill).
+    """
+    try:
+        result = neon_query(
+            "UPDATE lambda_concurrency SET active = GREATEST(active - 1, 0) RETURNING active"
+        )
+        remaining = result["rows"][0]["active"]
+        print(f"[concurrency] active invocations remaining: {remaining}")
+
+        if remaining == 0:
+            # Allow any Lambda that started in the same instant to register.
+            time.sleep(2)
+            recheck = neon_query("SELECT active FROM lambda_concurrency")
+            if recheck["rows"][0]["active"] == 0:
+                neon_suspend()
+    except Exception as e:
+        print(f"[concurrency] decrement/suspend check failed: {e}")
+
+
 # ── Lambda entry point ─────────────────────────────────────────────────────────
 
 def lambda_handler(event, context):
     """
     AWS Lambda handler — receives API Gateway proxy events.
 
-    API Gateway transforms every HTTP request into a structured event dict before
-    invoking this function. This handler unpacks that dict, routes by method + path,
-    and returns a dict that API Gateway converts back into an HTTP response.
+    Increments the shared active-invocation counter at the start and decrements
+    it at the end (via finally, so crashes don't leave the counter stuck).
+    The last invocation to finish — the one that brings the counter to 0 —
+    suspends the Neon compute endpoint.
     """
-    method  = event.get("httpMethod", "")
-    path    = event.get("path", "")
-    # Normalise header keys to lowercase for case-insensitive lookup
-    headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+    _increment_active()
+    try:
+        method  = event.get("httpMethod", "")
+        path    = event.get("path", "")
+        headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
 
-    # Decode body — API Gateway base64-encodes binary payloads
-    raw = event.get("body") or ""
-    body_bytes = base64.b64decode(raw) if event.get("isBase64Encoded") else raw.encode()
-    if headers.get("content-encoding") == "gzip":
-        try:
-            body_bytes = gzip.decompress(body_bytes)
-        except Exception:
-            return _resp(400, {"error": "failed to decompress body"})
+        # Decode body — API Gateway base64-encodes binary payloads
+        raw = event.get("body") or ""
+        body_bytes = base64.b64decode(raw) if event.get("isBase64Encoded") else raw.encode()
+        if headers.get("content-encoding") == "gzip":
+            try:
+                body_bytes = gzip.decompress(body_bytes)
+            except Exception:
+                return _resp(400, {"error": "failed to decompress body"})
 
-    # All routes require a Bearer token
-    auth = headers.get("authorization", "")
-    if not auth.startswith("Bearer "):
-        return _resp(401, {"error": "missing or invalid Authorization header"})
-    bearer_token = auth[len("Bearer "):]
+        # All routes require a Bearer token
+        auth = headers.get("authorization", "")
+        if not auth.startswith("Bearer "):
+            return _resp(401, {"error": "missing or invalid Authorization header"})
+        bearer_token = auth[len("Bearer "):]
 
-    # ── Route ─────────────────────────────────────────────────────────────────
+        if method == "GET" and path == "/health":
+            try:
+                neon_query("SELECT 1")
+                return _resp(200, {"status": "ok", "db": "connected"})
+            except Exception as e:
+                return _resp(503, {"status": "error", "db": str(e)})
 
-    if method == "GET" and path == "/health":
-        try:
-            neon_query("SELECT 1")
-            return _resp(200, {"status": "ok", "db": "connected"})
-        except Exception as e:
-            return _resp(503, {"status": "error", "db": str(e)})
+        if method == "POST" and path == "/v1/ingest":
+            status, body = handle_ingest(bearer_token, body_bytes)
+            print(f"[ingest] accepted={body.get('accepted', 0)} rejected={body.get('rejected', 0)}")
+            return _resp(status, body)
 
-    if method == "POST" and path == "/v1/ingest":
-        status, body = handle_ingest(bearer_token, body_bytes)
-        print(f"[ingest] accepted={body.get('accepted', 0)} rejected={body.get('rejected', 0)}")
-        response = _resp(status, body)
-        # Suspend Neon compute only after all writes have successfully committed.
-        # The function blocks here — Lambda does not return until suspend completes.
-        if status == 200 and NEON_SUSPEND_AFTER_INGEST:
-            neon_suspend()
-        return response
+        if method == "POST" and path == "/v1/crashes":
+            return _resp(200, {"crash_id": "not_stored", "symbolicated": False})
 
-    if method == "POST" and path == "/v1/crashes":
-        return _resp(200, {"crash_id": "not_stored", "symbolicated": False})
+        return _resp(404, {"error": "not found"})
 
-    return _resp(404, {"error": "not found"})
+    finally:
+        # Always runs — even on unhandled exceptions — so the counter never
+        # gets permanently stuck from a crashed invocation.
+        _decrement_and_maybe_suspend()
 
 
 def _resp(status, data):
