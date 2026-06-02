@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Monitoor Ingest Service — AWS Lambda + API Gateway.
+  Receives iOS SDK event batches and writes them to the Neon PostgreSQL database.
+
+# ── Parameters ─────────────────────────────────────────────────────────────────
+Parameters:
+
+  NeonUrl:
+    Type: String
+    Description: "Neon HTTP SQL endpoint URL (e.g. https://ep-xxx.neon.tech/sql)"
+
+  NeonConnectionStr:
+    Type: String
+    NoEcho: true
+    Description: "Full postgres:// connection string for Neon"
+
+  NeonApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: >
+      Neon Management API key. Required only when NeonSuspendAfterIngest=true.
+      Obtain from: console.neon.tech → Account → API Keys.
+
+  NeonSuspendAfterIngest:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >
+      When "true", the Lambda suspends the Neon compute endpoint after each
+      successful ingest. All DB writes complete before the suspend call is made.
+      Only recommended for low-traffic or development environments — see LAMBDA.md.
+
+  StageName:
+    Type: String
+    Default: prod
+    Description: "API Gateway deployment stage name (prod, staging, dev, …)"
+
+# ── Globals ────────────────────────────────────────────────────────────────────
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 15          # seconds — well above any expected Neon round-trip
+    MemorySize: 128      # MB — no heavy computation; 128 MB is sufficient
+    Environment:
+      Variables:
+        NEON_URL: !Ref NeonUrl
+        NEON_CONNECTION_STR: !Ref NeonConnectionStr
+        NEON_API_KEY: !Ref NeonApiKey
+        NEON_SUSPEND_AFTER_INGEST: !Ref NeonSuspendAfterIngest
+
+# ── Resources ──────────────────────────────────────────────────────────────────
+Resources:
+
+  # API Gateway (REST API with Lambda Proxy integration)
+  # SAM creates the RestApi, Stage, and Deployment automatically from the
+  # Events defined on the function below.
+  MonitoorApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: monitoor-ingest-api
+      StageName: !Ref StageName
+      # Enforce HTTPS only — reject plain HTTP requests at the gateway level
+      EndpointConfiguration:
+        Type: REGIONAL
+      # Enable default throttling to guard against burst traffic
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          ThrottlingBurstLimit: 200   # concurrent requests
+          ThrottlingRateLimit: 100    # requests/second steady-state
+
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: monitoor-ingest
+      Handler: handler.lambda_handler
+      # CodeUri points to this directory — sam build / sam deploy packages it
+      CodeUri: .
+      Description: "Monitoor event ingest — receives iOS SDK batches, writes to Neon"
+      Events:
+        IngestPost:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MonitoorApi
+            Path: /v1/ingest
+            Method: POST
+        CrashesPost:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MonitoorApi
+            Path: /v1/crashes
+            Method: POST
+        HealthGet:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MonitoorApi
+            Path: /health
+            Method: GET
+
+# ── Outputs ────────────────────────────────────────────────────────────────────
+Outputs:
+
+  ApiBaseUrl:
+    Description: "Base URL to use as ingestURL in the iOS SDK"
+    Value: !Sub "https://${MonitoorApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+
+  IngestEndpoint:
+    Description: "Full ingest endpoint (POST)"
+    Value: !Sub "https://${MonitoorApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/v1/ingest"
+
+  HealthEndpoint:
+    Description: "Health check endpoint (GET)"
+    Value: !Sub "https://${MonitoorApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/health"
+
+  FunctionArn:
+    Description: "Lambda function ARN"
+    Value: !GetAtt IngestFunction.Arn
