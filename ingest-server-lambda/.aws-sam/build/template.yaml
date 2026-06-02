@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "Monitoor Ingest Service \u2014 AWS Lambda + API Gateway. Receives iOS\
+  \ SDK event batches and writes them to the Neon PostgreSQL database.\n"
+Parameters:
+  NeonUrl:
+    Type: String
+    Description: Neon HTTP SQL endpoint URL (e.g. https://ep-xxx.neon.tech/sql)
+  NeonConnectionStr:
+    Type: String
+    NoEcho: true
+    Description: Full postgres:// connection string for Neon
+  NeonApiKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: "Neon Management API key \u2014 used to suspend compute when all\
+      \ active Lambda invocations finish. Obtain from: console.neon.tech \u2192 Account\
+      \ \u2192 API Keys. If left blank, suspension is skipped and Neon falls back\
+      \ to its built-in 5-minute idle timeout.\n"
+  StageName:
+    Type: String
+    Default: prod
+    Description: "API Gateway deployment stage name (prod, staging, dev, \u2026)"
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 15
+    MemorySize: 128
+    Environment:
+      Variables:
+        NEON_URL:
+          Ref: NeonUrl
+        NEON_CONNECTION_STR:
+          Ref: NeonConnectionStr
+        NEON_API_KEY:
+          Ref: NeonApiKey
+Resources:
+  MonitoorApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: monitoor-ingest-api
+      StageName:
+        Ref: StageName
+      EndpointConfiguration:
+        Type: REGIONAL
+      MethodSettings:
+      - ResourcePath: /*
+        HttpMethod: '*'
+        ThrottlingBurstLimit: 200
+        ThrottlingRateLimit: 100
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: monitoor-ingest
+      Handler: handler.lambda_handler
+      CodeUri: IngestFunction
+      Description: "Monitoor event ingest \u2014 receives iOS SDK batches, writes\
+        \ to Neon"
+      Events:
+        IngestPost:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: MonitoorApi
+            Path: /v1/ingest
+            Method: POST
+        CrashesPost:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: MonitoorApi
+            Path: /v1/crashes
+            Method: POST
+        HealthGet:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: MonitoorApi
+            Path: /health
+            Method: GET
+    Metadata:
+      SamResourceId: IngestFunction
+Outputs:
+  ApiBaseUrl:
+    Description: Base URL to use as ingestURL in the iOS SDK
+    Value:
+      Fn::Sub: https://${MonitoorApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}
+  IngestEndpoint:
+    Description: Full ingest endpoint (POST)
+    Value:
+      Fn::Sub: https://${MonitoorApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/v1/ingest
+  HealthEndpoint:
+    Description: Health check endpoint (GET)
+    Value:
+      Fn::Sub: https://${MonitoorApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/health
+  FunctionArn:
+    Description: Lambda function ARN
+    Value:
+      Fn::GetAtt:
+      - IngestFunction
+      - Arn

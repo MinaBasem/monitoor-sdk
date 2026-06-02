@@ -1,0 +1,17 @@
+default:
+  deploy:
+    parameters:
+      stack_name: monitoor-stack
+      resolve_s3: true
+      s3_prefix: monitoor-stack
+      region: us-east-1
+      confirm_changeset: true
+      capabilities: CAPABILITY_IAM
+      parameter_overrides: 
+        NeonUrl="https://ep-shiny-hat-al5rb3wf-pooler.c-3.eu-central-1.aws.neon.tech/sql"
+        StageName="dev"
+      image_repositories: []
+  global:
+    parameters:
+      region: us-east-1
+version: 0.1

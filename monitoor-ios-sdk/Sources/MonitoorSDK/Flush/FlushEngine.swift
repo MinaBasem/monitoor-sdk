@@ -123,15 +123,22 @@ final class FlushEngine {
 
     private func scheduleTimer() {
         flushTimer = Timer.scheduledTimer(withTimeInterval: options.flushInterval, repeats: true) { [weak self] _ in
-            self?.flush()
+            guard let self else { return }
+            // Only POST on the timer tick if there are pending events in the buffer.
+            // An empty timer tick produces no HTTP request.
+            if (try? self.buffer.pendingCount()) ?? 0 > 0 {
+                self.flush()
+            }
         }
     }
 
     private func startNetworkMonitor() {
         networkMonitor = NWPathMonitor()
         networkMonitor?.pathUpdateHandler = { [weak self] path in
-            if path.status == .satisfied {
-                self?.flush()
+            guard let self, path.status == .satisfied else { return }
+            // Only flush on network restore if there are events waiting to be sent.
+            if (try? self.buffer.pendingCount()) ?? 0 > 0 {
+                self.flush()
             }
         }
         networkMonitor?.start(queue: monitorQueue)

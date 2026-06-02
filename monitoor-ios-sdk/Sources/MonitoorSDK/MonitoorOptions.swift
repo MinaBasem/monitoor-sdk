@@ -68,7 +68,7 @@ public struct MonitoorOptions: Sendable {
         captureRecordings: Bool = false,
         sampleRate: Double = 1.0,
         retentionDays: Int = 90,
-        flushInterval: TimeInterval = 20,
+        flushInterval: TimeInterval = 30,
         flushBatchSize: Int = 50,
         sessionTimeout: TimeInterval = 30 * 60
     ) {
