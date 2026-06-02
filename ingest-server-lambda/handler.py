@@ -18,7 +18,6 @@ Environment variables (set in Lambda console or CloudFormation template):
 import base64
 import json
 import os
-import time
 import urllib.request
 import urllib.error
 import gzip
@@ -26,16 +25,8 @@ from datetime import datetime, timezone
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-NEON_URL     = os.environ.get("NEON_URL")
-NEON_CONN    = os.environ.get("NEON_CONNECTION_STR")
-NEON_API_KEY = os.environ.get("NEON_API_KEY", "")
-
-NEON_PROJECT_ID  = "sweet-silence-19487365"
-NEON_ENDPOINT_ID = "ep-shiny-hat-al5rb3wf"
-NEON_SUSPEND_URL = (
-    f"https://console.neon.tech/api/v2/projects/{NEON_PROJECT_ID}"
-    f"/endpoints/{NEON_ENDPOINT_ID}/suspend"
-)
+NEON_URL  = os.environ.get("NEON_URL")
+NEON_CONN = os.environ.get("NEON_CONNECTION_STR")
 
 if not NEON_URL or not NEON_CONN:
     raise RuntimeError(
@@ -201,27 +192,6 @@ def handle_ingest(bearer_token, body_bytes):
     return 200, {"accepted": accepted, "rejected": rejected, "errors": errors}
 
 
-# ── Neon compute suspend ───────────────────────────────────────────────────────
-
-def neon_suspend():
-    """Call the Neon Management API to suspend the compute endpoint."""
-    if not NEON_API_KEY:
-        print("[suspend] NEON_API_KEY not set — skipping suspend")
-        return
-    try:
-        req = urllib.request.Request(
-            NEON_SUSPEND_URL,
-            data=b"",
-            method="POST",
-            headers={
-                "accept": "application/json",
-                "authorization": f"Bearer {NEON_API_KEY}",
-            }
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            print(f"[suspend] Neon compute suspended (HTTP {resp.status})")
-    except Exception as e:
-        print(f"[suspend] Failed to suspend Neon compute: {e}")
 
 
 # ── Lambda concurrency tracking ────────────────────────────────────────────────
@@ -238,14 +208,13 @@ def _increment_active():
         print(f"[concurrency] increment failed: {e}")
 
 
-def _decrement_and_maybe_suspend():
+def _decrement_active():
     """
-    Decrement the active counter. If this is the last running invocation
-    (counter reaches 0), wait 2 seconds to let any Lambda that started in
-    the same instant register itself, then recheck. If still 0, suspend Neon.
-
+    Decrement the active counter.
     GREATEST(..., 0) prevents the counter going negative if a prior invocation
     crashed before decrementing (e.g. Lambda timeout, OOM kill).
+    Neon compute is left to auto-suspend via its built-in idle timeout —
+    suspending it synchronously here would block the HTTP response to the SDK.
     """
     try:
         result = neon_query(
@@ -253,15 +222,8 @@ def _decrement_and_maybe_suspend():
         )
         remaining = result["rows"][0]["active"]
         print(f"[concurrency] active invocations remaining: {remaining}")
-
-        if remaining == 0:
-            # Allow any Lambda that started in the same instant to register.
-            time.sleep(2)
-            recheck = neon_query("SELECT active FROM lambda_concurrency")
-            if recheck["rows"][0]["active"] == 0:
-                neon_suspend()
     except Exception as e:
-        print(f"[concurrency] decrement/suspend check failed: {e}")
+        print(f"[concurrency] decrement failed: {e}")
 
 
 # ── Lambda entry point ─────────────────────────────────────────────────────────
@@ -316,7 +278,7 @@ def lambda_handler(event, context):
     finally:
         # Always runs — even on unhandled exceptions — so the counter never
         # gets permanently stuck from a crashed invocation.
-        _decrement_and_maybe_suspend()
+        _decrement_active()
 
 
 def _resp(status, data):

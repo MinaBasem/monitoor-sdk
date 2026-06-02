@@ -56,7 +56,10 @@ final class EventCapture {
         sessionManager.recordActivity()
 
         let occurredAt = ISO8601DateFormatter.monitoor.string(from: Date())
-        let idempotencyKey = "\(deviceIdentity.deviceId)-\(sessionManager.currentSessionId)-\(occurredAt)"
+        // UUID suffix guarantees uniqueness even when two events occur within the same millisecond.
+        // The key is stored in the buffer, so retried batches resend the same key and the
+        // server's ON CONFLICT DO NOTHING prevents duplicates without losing events.
+        let idempotencyKey = "\(deviceIdentity.deviceId)-\(UUID().uuidString)"
 
         let event = PendingEvent(
             type: type,
@@ -74,8 +77,12 @@ final class EventCapture {
         try? buffer.enqueue(payload: data, type: .event)
 
         // Flush immediately if the batch is full.
-        if let count = try? buffer.pendingCount(), count >= flushBatchSize {
-            flushEngine.flush()
+        if let count = try? buffer.pendingCount() {
+            MonitoorSDK.log("[enqueue] '\(name)' — pending=\(count) batchSize=\(flushBatchSize)")
+            if count >= flushBatchSize {
+                MonitoorSDK.log("[flush] BATCH FULL (\(count) events) — flushing now")
+                flushEngine.flush()
+            }
         }
     }
 

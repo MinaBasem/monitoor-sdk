@@ -15,6 +15,10 @@ final class FlushEngine {
     private var isFlushing = false
     private let flushLock = NSLock()
 
+    // Tracks last known network state so the monitor only flushes on a genuine
+    // offline → online transition, not on the initial callback at app startup.
+    private var networkWasSatisfied = true
+
     init(buffer: LocalBuffer, httpClient: HTTPClient, apiKey: String, options: MonitoorOptions) {
         self.buffer     = buffer
         self.httpClient = httpClient
@@ -124,9 +128,9 @@ final class FlushEngine {
     private func scheduleTimer() {
         flushTimer = Timer.scheduledTimer(withTimeInterval: options.flushInterval, repeats: true) { [weak self] _ in
             guard let self else { return }
-            // Only POST on the timer tick if there are pending events in the buffer.
-            // An empty timer tick produces no HTTP request.
-            if (try? self.buffer.pendingCount()) ?? 0 > 0 {
+            let count = (try? self.buffer.pendingCount()) ?? 0
+            MonitoorSDK.log("[flush] TIMER fired — pending=\(count)")
+            if count > 0 {
                 self.flush()
             }
         }
@@ -135,9 +139,12 @@ final class FlushEngine {
     private func startNetworkMonitor() {
         networkMonitor = NWPathMonitor()
         networkMonitor?.pathUpdateHandler = { [weak self] path in
-            guard let self, path.status == .satisfied else { return }
-            // Only flush on network restore if there are events waiting to be sent.
-            if (try? self.buffer.pendingCount()) ?? 0 > 0 {
+            guard let self else { return }
+            let isSatisfied = path.status == .satisfied
+            let wasRestored = isSatisfied && !self.networkWasSatisfied
+            self.networkWasSatisfied = isSatisfied
+            MonitoorSDK.log("[flush] NETWORK path=\(path.status) wasRestored=\(wasRestored)")
+            if wasRestored, (try? self.buffer.pendingCount()) ?? 0 > 0 {
                 self.flush()
             }
         }
@@ -151,6 +158,7 @@ final class FlushEngine {
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil, queue: nil
         ) { [weak self] _ in
+            MonitoorSDK.log("[flush] BACKGROUND triggered")
             self?.flushOnBackground()
         }
 
@@ -158,6 +166,7 @@ final class FlushEngine {
             forName: UIApplication.willTerminateNotification,
             object: nil, queue: nil
         ) { [weak self] _ in
+            MonitoorSDK.log("[flush] TERMINATE triggered")
             self?.flushSynchronously()
         }
     }

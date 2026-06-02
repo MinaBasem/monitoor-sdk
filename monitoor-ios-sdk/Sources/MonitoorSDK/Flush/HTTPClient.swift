@@ -27,9 +27,9 @@ final class HTTPClient {
         guard !batch.events.isEmpty else { return .success(IngestResponse(accepted: 0, rejected: 0, errors: [])) }
 
         let ingestBatch = IngestBatch(sdkVersion: MonitoorSDK.version, batch: batch.events)
-        let (body, compressed): (Data, Bool)
+        let body: Data
         do {
-            (body, compressed) = try encoder.encode(batch: ingestBatch)
+            body = try encoder.encode(batch: ingestBatch)
         } catch {
             return .clientError
         }
@@ -39,9 +39,6 @@ final class HTTPClient {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(MonitoorSDK.version, forHTTPHeaderField: "X-Monitoor-SDK-Version")
-        if compressed {
-            request.setValue("gzip", forHTTPHeaderField: "Content-Encoding")
-        }
         request.httpBody = body
         request.timeoutInterval = 30
 

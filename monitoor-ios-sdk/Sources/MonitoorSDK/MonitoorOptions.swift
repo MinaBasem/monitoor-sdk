@@ -69,7 +69,7 @@ public struct MonitoorOptions: Sendable {
         sampleRate: Double = 1.0,
         retentionDays: Int = 90,
         flushInterval: TimeInterval = 30,
-        flushBatchSize: Int = 10,
+        flushBatchSize: Int = 20,
         sessionTimeout: TimeInterval = 30 * 60
     ) {
         self.ingestURL       = ingestURL
