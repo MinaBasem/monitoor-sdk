@@ -180,6 +180,84 @@
 
   <hr class="divider">
 
+  <!-- ── Super properties ────────────────────────────────────────────────────── -->
+  <h2>Super Properties</h2>
+  <p>Global key/values automatically merged into every event. Persisted across launches. Event-specific properties override super properties on key conflict.</p>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">registerSuperProperties</span>(<span class="pm">_</span> properties: [<span class="tp">String</span>: <span class="tp">Any</span>])</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Registers (merges) global properties attached to every subsequent event. Values must be <code>String</code>, <code>Int</code>, <code>Double</code>, or <code>Bool</code>.</p>
+      <ul class="param-list">
+        <li><span class="param-name">properties</span><span class="param-type">[String: Any]</span><span class="param-desc">Key-values merged into the existing super-property set; existing keys are overwritten.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">unregisterSuperProperty</span>(<span class="pm">_</span> key: <span class="tp">String</span>)</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Removes a single super property by key.</p>
+      <ul class="param-list">
+        <li><span class="param-name">key</span><span class="param-type">String</span><span class="param-desc">The super-property key to remove.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">clearSuperProperties</span>()</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Removes all super properties.</p>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ── Consent ─────────────────────────────────────────────────────────────── -->
+  <h2>Consent</h2>
+  <p>Runtime opt-out for GDPR / App Store consent flows. The choice is persisted across launches.</p>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static var</span>
+      <code>isOptedOut: <span class="tp">Bool</span></code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Whether the user is currently opted out of all collection. Read-only.</p>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">optOut</span>()</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Stops all capture and transmission, and purges any locally buffered events. Persists across launches until <code>optIn()</code> is called.</p>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header">
+      <span class="method-badge">static func</span>
+      <code><span class="fn">optIn</span>()</code>
+    </div>
+    <div class="method-body">
+      <p class="method-desc">Re-enables analytics collection after a previous <code>optOut()</code>.</p>
+    </div>
+  </div>
+
+  <hr class="divider">
+
   <!-- ── View modifiers ──────────────────────────────────────────────────────── -->
   <h2>SwiftUI View Modifiers</h2>
 

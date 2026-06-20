@@ -71,6 +71,18 @@ final class BufferTests: XCTestCase {
         XCTAssertEqual(try buffer.pendingCount(), 2)
     }
 
+    func testClearAll_removesAllRows() throws {
+        let payload = #"{"name":"x"}"#.data(using: .utf8)!
+        for _ in 0..<5 {
+            try buffer.enqueue(payload: payload, type: .event)
+        }
+        XCTAssertEqual(try buffer.pendingCount(), 5)
+
+        try buffer.clearAll()
+        XCTAssertEqual(try buffer.pendingCount(), 0)
+        XCTAssertTrue(try buffer.dequeue(limit: 10).isEmpty)
+    }
+
     func testConcurrentEnqueue_noDataRace() throws {
         let iterations = 200
         let group = DispatchGroup()

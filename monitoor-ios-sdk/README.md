@@ -119,8 +119,8 @@ MonitoorOptions(
     retentionDays: 90,
 
     // Flush tuning.
-    flushInterval: 20,         // seconds between scheduled flushes
-    flushBatchSize: 50,        // events per HTTP request
+    flushInterval: 30,         // seconds between scheduled flushes
+    flushBatchSize: 10,        // events per HTTP request
     sessionTimeout: 30 * 60   // new session after this many seconds of inactivity
 )
 ```
@@ -138,6 +138,23 @@ Monitoor.configure(
     )
 )
 ```
+
+### Remote configuration
+
+On startup the SDK fetches your API key's capture configuration from `GET /v1/config`
+and applies it at runtime. This lets you change behaviour from the dashboard **without
+shipping an app update** — toggle `captureEvents`, `captureScreens`, `captureRevenue`,
+adjust the sampling rate (`mul`), or change retention, and connected apps pick it up on
+their next launch.
+
+The values in `MonitoorOptions` act as **local defaults / fallbacks** used until the
+remote config arrives (and whenever the device is offline). Server values, once fetched,
+take precedence for the runtime-toggleable flags.
+
+> **Installation vs. runtime gating:** crash handlers, the StoreKit observer, and the
+> UIKit screen swizzle are installed once at launch based on your **local** options. A
+> remote value of `true` cannot enable something that was never installed, but a remote
+> `false` cleanly suppresses capture at runtime.
 
 ---
 
@@ -302,6 +319,59 @@ Monitoor.reset()
 
 ---
 
+## Super Properties
+
+Super properties are global key/values automatically merged into **every** event, so you
+don't repeat them on each `track()` call. They persist across launches.
+
+```swift
+// Register once (e.g. after sign-in or at launch)
+Monitoor.registerSuperProperties([
+    "app_tier": "pro",
+    "ab_cohort": "B"
+])
+
+// Every subsequent event now carries app_tier and ab_cohort automatically
+Monitoor.track("song_played")   // → properties include app_tier, ab_cohort
+
+// Remove one, or clear them all
+Monitoor.unregisterSuperProperty("ab_cohort")
+Monitoor.clearSuperProperties()
+```
+
+If an event passes a property with the same key as a super property, the **event-specific
+value wins** for that event.
+
+---
+
+## Consent & Opt-Out
+
+The SDK collects data as soon as it's configured. For GDPR / App Store consent flows, you
+can stop all collection at runtime. The choice is persisted across launches.
+
+```swift
+// Stop all capture and flushing, and purge any locally buffered events
+Monitoor.optOut()
+
+// Re-enable collection later
+Monitoor.optIn()
+
+// Check current state
+if Monitoor.isOptedOut { … }
+```
+
+When opted out: no events are captured (including system events), nothing is transmitted,
+and the local buffer is emptied. Opt-out survives app relaunches until you call `optIn()`.
+
+```swift
+// Typical consent-banner integration
+func onUserConsentChanged(granted: Bool) {
+    granted ? Monitoor.optIn() : Monitoor.optOut()
+}
+```
+
+---
+
 ## Revenue Tracking
 
 ### StoreKit 2 (automatic)
@@ -402,6 +472,12 @@ When `sampleRate < 1.0`, the SDK randomly discards developer events before they 
 
 The SDK requires **no `NSPrivacyAccessedAPITypes`** entries in `PrivacyInfo.xcprivacy` and triggers no App Tracking Transparency prompt.
 
+### Runtime opt-out
+
+For consent-driven apps, `Monitoor.optOut()` stops all capture and transmission and purges
+the local buffer; `Monitoor.optIn()` resumes. The choice persists across launches. See
+[Consent & Opt-Out](#consent--opt-out).
+
 ---
 
 ## FAQ
@@ -440,4 +516,4 @@ Check the Monitoor development dashboard. In DEBUG builds, the SDK also prints `
 | Events appear but are delayed | Default flush interval is 20 s. Call `Monitoor.flush()` for immediate delivery. |
 | Crash reports not appearing | Verify `captureCrashes: true`. Crashes upload on the **next** launch, not the crashing one. |
 | `mn_live_` key rejected | Ensure `environment: .production` in `MonitoorOptions`. |
-| High data usage | Reduce `flushBatchSize` or increase `flushInterval`. Events are gzip-compressed above 1 KB. |
+| High data usage | Increase `flushInterval` or `flushBatchSize` to send fewer, larger requests. |

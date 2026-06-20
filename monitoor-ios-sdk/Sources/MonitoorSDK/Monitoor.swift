@@ -117,6 +117,47 @@ public final class Monitoor {
         core.sessionDuration
     }
 
+    // MARK: - Super properties
+
+    /// Registers global properties that are automatically merged into every event.
+    /// Event-specific properties override super properties on key conflict.
+    /// Persisted across launches.
+    ///
+    /// ```swift
+    /// Monitoor.registerSuperProperties(["app_tier": "pro", "ab_cohort": "B"])
+    /// ```
+    public static func registerSuperProperties(_ properties: [String: Any]) {
+        core.registerSuperProperties(properties)
+    }
+
+    /// Removes a single super property by key.
+    public static func unregisterSuperProperty(_ key: String) {
+        core.unregisterSuperProperty(key)
+    }
+
+    /// Removes all super properties.
+    public static func clearSuperProperties() {
+        core.clearSuperProperties()
+    }
+
+    // MARK: - Consent
+
+    /// Whether the user has opted out of analytics collection.
+    public static var isOptedOut: Bool {
+        core.isOptedOut
+    }
+
+    /// Opts the user out of all analytics. Stops capture and flushing, and purges
+    /// any locally buffered events. The choice persists across launches.
+    public static func optOut() {
+        core.optOut()
+    }
+
+    /// Re-enables analytics collection after a previous `optOut()`.
+    public static func optIn() {
+        core.optIn()
+    }
+
     // MARK: - Manual flush
 
     /// Forces an immediate flush of all buffered events. Useful in testing or before critical operations.

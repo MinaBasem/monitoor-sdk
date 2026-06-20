@@ -6,6 +6,8 @@ final class FlushEngine {
     private let httpClient: HTTPClient
     private let apiKey: String
     private let options: MonitoorOptions
+    private let runtimeConfig: RuntimeConfig
+    private let consent: ConsentManager
 
     private var flushTimer: Timer?
     private var networkMonitor: NWPathMonitor?
@@ -19,11 +21,20 @@ final class FlushEngine {
     // offline → online transition, not on the initial callback at app startup.
     private var networkWasSatisfied = true
 
-    init(buffer: LocalBuffer, httpClient: HTTPClient, apiKey: String, options: MonitoorOptions) {
-        self.buffer     = buffer
-        self.httpClient = httpClient
-        self.apiKey     = apiKey
-        self.options    = options
+    init(
+        buffer: LocalBuffer,
+        httpClient: HTTPClient,
+        apiKey: String,
+        options: MonitoorOptions,
+        runtimeConfig: RuntimeConfig,
+        consent: ConsentManager
+    ) {
+        self.buffer        = buffer
+        self.httpClient    = httpClient
+        self.apiKey        = apiKey
+        self.options       = options
+        self.runtimeConfig = runtimeConfig
+        self.consent       = consent
     }
 
     // MARK: - Lifecycle
@@ -45,6 +56,8 @@ final class FlushEngine {
     // MARK: - Flush entry point
 
     func flush(completion: (() -> Void)? = nil) {
+        // Opted-out users never transmit.
+        guard !consent.isOptedOut else { completion?(); return }
         flushQueue.async { [weak self] in
             self?.flushLock.withLock {
                 guard let self, !self.isFlushing else {
@@ -193,7 +206,7 @@ final class FlushEngine {
     }
 
     private func pruneExpiredEvents() {
-        try? buffer.pruneExpired(maxAge: options.maxBufferAge)
+        try? buffer.pruneExpired(maxAge: runtimeConfig.maxBufferAge)
     }
 }
 

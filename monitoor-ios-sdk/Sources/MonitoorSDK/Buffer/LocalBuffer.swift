@@ -115,6 +115,13 @@ final class LocalBuffer {
         }
     }
 
+    /// Deletes every row from the buffer. Used when the user opts out of collection.
+    func clearAll() throws {
+        try queue.sync {
+            try exec("DELETE FROM buffer;", bindings: [])
+        }
+    }
+
     // MARK: - Private helpers
 
     private func open() throws {

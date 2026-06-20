@@ -9,6 +9,9 @@ final class EventCapture {
     private let flushEngine: FlushEngine
     private let options: MonitoorOptions
     private let flushBatchSize: Int
+    private let runtimeConfig: RuntimeConfig
+    private let superProperties: SuperProperties
+    private let consent: ConsentManager
 
     private var timers: [String: Date] = [:]
     private let timersLock = NSLock()
@@ -20,16 +23,22 @@ final class EventCapture {
         deviceIdentity: DeviceIdentity,
         deviceInfo: DeviceInfo,
         flushEngine: FlushEngine,
-        options: MonitoorOptions
+        options: MonitoorOptions,
+        runtimeConfig: RuntimeConfig,
+        superProperties: SuperProperties,
+        consent: ConsentManager
     ) {
-        self.buffer         = buffer
-        self.sessionManager = sessionManager
-        self.identity       = identity
-        self.deviceIdentity = deviceIdentity
-        self.deviceInfo     = deviceInfo
-        self.flushEngine    = flushEngine
-        self.options        = options
-        self.flushBatchSize = options.flushBatchSize
+        self.buffer          = buffer
+        self.sessionManager  = sessionManager
+        self.identity        = identity
+        self.deviceIdentity  = deviceIdentity
+        self.deviceInfo      = deviceInfo
+        self.flushEngine     = flushEngine
+        self.options         = options
+        self.flushBatchSize  = options.flushBatchSize
+        self.runtimeConfig   = runtimeConfig
+        self.superProperties = superProperties
+        self.consent         = consent
     }
 
     func track(_ name: String, properties: [String: Any]) {
@@ -48,12 +57,21 @@ final class EventCapture {
     // MARK: - Internal helpers
 
     func enqueue(name: String, type: String, properties: [String: Any]) {
-        // Apply client-side sampling. System lifecycle events ($ prefix) are never sampled out.
-        if !name.hasPrefix("$"), options.sampleRate < 1.0 {
-            guard Double.random(in: 0..<1) < options.sampleRate else { return }
+        // Consent gate — the single choke point. When opted out, nothing is captured.
+        guard !consent.isOptedOut else { return }
+
+        // Apply client-side sampling using the live config. System lifecycle events
+        // ($ prefix) are never sampled out.
+        if !name.hasPrefix("$"), runtimeConfig.sampleRate < 1.0 {
+            guard Double.random(in: 0..<1) < runtimeConfig.sampleRate else { return }
         }
 
         sessionManager.recordActivity()
+
+        // Merge super properties (global) with event-specific properties.
+        // Event-specific keys win on conflict.
+        var mergedProperties = superProperties.all()
+        mergedProperties.merge(properties) { _, new in new }
 
         let occurredAt = ISO8601DateFormatter.monitoor.string(from: Date())
         // UUID suffix guarantees uniqueness even when two events occur within the same millisecond.
@@ -69,7 +87,7 @@ final class EventCapture {
             userIdHash: identity.userIdHash,
             idempotencyKey: idempotencyKey,
             occurredAt: occurredAt,
-            properties: properties.isEmpty ? nil : properties.toAnyCodable(),
+            properties: mergedProperties.isEmpty ? nil : mergedProperties.toAnyCodable(),
             context: deviceInfo.asEventContext()
         )
 

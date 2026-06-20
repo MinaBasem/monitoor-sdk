@@ -89,4 +89,24 @@ final class HTTPClient {
 
         return .success(parsed)
     }
+
+    // MARK: - Remote config
+
+    /// Fetches the ApiKey's capture configuration from GET /v1/config.
+    /// Returns nil on any failure (offline, error, non-2xx) so callers keep local defaults.
+    func fetchConfig(apiKey: String, ingestURL: URL) async -> RemoteConfigResponse? {
+        var request = URLRequest(url: ingestURL.appendingPathComponent("v1/config"))
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue(MonitoorSDK.version, forHTTPHeaderField: "X-Monitoor-SDK-Version")
+        request.timeoutInterval = 30
+
+        guard let (data, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode),
+              let parsed = try? decoder.decode(RemoteConfigResponse.self, from: data)
+        else { return nil }
+
+        return parsed
+    }
 }

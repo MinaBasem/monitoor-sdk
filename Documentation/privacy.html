@@ -88,6 +88,26 @@
   <h2>App Tracking Transparency</h2>
   <p>The SDK never accesses <code>ASIdentifierManager</code> or any advertising identifier. Your app does <strong>not</strong> need to request ATT permission to use MonitoorSDK.</p>
 
+  <h2>Consent &amp; opt-out</h2>
+  <p>For consent-driven apps, you can stop all collection at runtime. The choice is persisted across launches.</p>
+  <pre><code><span class="cm">// Stop all capture + transmission, and purge any buffered events</span>
+<span class="tp">Monitoor</span>.<span class="fn">optOut</span>()
+
+<span class="cm">// Resume collection later</span>
+<span class="tp">Monitoor</span>.<span class="fn">optIn</span>()
+
+<span class="cm">// Wire to a consent banner</span>
+<span class="kw">func</span> <span class="fn">onConsentChanged</span>(granted: <span class="tp">Bool</span>) {
+    granted ? <span class="tp">Monitoor</span>.<span class="fn">optIn</span>() : <span class="tp">Monitoor</span>.<span class="fn">optOut</span>()
+}
+</code></pre>
+  <p>When opted out: no events are captured (including system events), nothing is transmitted, and the local buffer is emptied. The opt-out persists across relaunches until <code>optIn()</code> is called.</p>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">Opt-out controls collection on the device. To delete data already stored server-side, use the GDPR deletion query below.</div>
+  </div>
+
   <h2>GDPR — data deletion</h2>
   <p>To delete all data associated with a device under a right-to-erasure request, run the following against your Neon database:</p>
 

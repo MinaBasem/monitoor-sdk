@@ -23,6 +23,18 @@ struct IngestError: Decodable {
     let reason: String
 }
 
+/// Response body from GET /v1/config — the ApiKey row's capture configuration.
+struct RemoteConfigResponse: Decodable {
+    let captureEvents: Bool
+    let captureScreens: Bool
+    let captureRevenue: Bool
+    let captureCrashes: Bool
+    let captureHeatmaps: Bool
+    let captureRecordings: Bool
+    let mul: Double         // → sampleRate
+    let retention: Int      // → retentionDays
+}
+
 /// Thin wrapper tracking which buffer row IDs correspond to which batch positions.
 struct OutboundBatch {
     let events: [WireEvent]

@@ -57,12 +57,31 @@
         <span class="pm">captureRecordings</span>:  <span class="nm">false</span>,   <span class="cm">// opt-in</span>
         <span class="pm">sampleRate</span>:         <span class="nm">1.0</span>,
         <span class="pm">retentionDays</span>:      <span class="nm">90</span>,
-        <span class="pm">flushInterval</span>:      <span class="nm">20</span>,      <span class="cm">// seconds</span>
-        <span class="pm">flushBatchSize</span>:     <span class="nm">50</span>,      <span class="cm">// events per request</span>
+        <span class="pm">flushInterval</span>:      <span class="nm">30</span>,      <span class="cm">// seconds</span>
+        <span class="pm">flushBatchSize</span>:     <span class="nm">10</span>,      <span class="cm">// events per request</span>
         <span class="pm">sessionTimeout</span>:     <span class="nm">30</span> * <span class="nm">60</span>  <span class="cm">// 30 minutes</span>
     )
 )
 </code></pre>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">These values are <strong>local defaults</strong>. The capture flags, <code>sampleRate</code>, and <code>retentionDays</code> are overridden at runtime by <a href="#remote-configuration">remote configuration</a> fetched from your dashboard. The remaining options (<code>flushInterval</code>, <code>flushBatchSize</code>, <code>sessionTimeout</code>, <code>ingestURL</code>, <code>environment</code>) are local-only.</div>
+  </div>
+
+  <h2 id="remote-configuration">Remote configuration</h2>
+  <p>On startup the SDK calls <code>GET /v1/config</code> and applies your API key's capture configuration at runtime. This lets you change behaviour from the dashboard <strong>without shipping an app update</strong>:</p>
+  <ul>
+    <li>Toggle <code>captureEvents</code>, <code>captureScreens</code>, <code>captureRevenue</code></li>
+    <li>Adjust the sampling rate (the <code>mul</code> column → <code>sampleRate</code>)</li>
+    <li>Change <code>retention</code> (→ <code>retentionDays</code>)</li>
+  </ul>
+  <p>The local <code>MonitoorOptions</code> values are used as fallbacks until the remote config arrives, and whenever the device is offline. Once fetched, server values take precedence for the runtime-toggleable flags.</p>
+
+  <div class="callout callout-warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body"><strong>Installation vs. runtime gating.</strong> Crash handlers, the StoreKit observer, and the UIKit screen swizzle are installed once at launch from your <em>local</em> options. A remote value of <code>true</code> cannot enable something that was never installed — but a remote <code>false</code> cleanly suppresses capture at runtime.</div>
+  </div>
 
   <h2>Option reference</h2>
 
@@ -128,11 +147,11 @@
   <p>Maximum number of days an unsent event is kept in the local SQLite buffer. Events older than this are pruned automatically. This mirrors the <code>retention</code> column on your <code>ApiKey</code> record.</p>
 
   <h3>flushInterval</h3>
-  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>TimeInterval</code> (seconds)</td><td><code>20</code></td></tr></table>
-  <p>How often the SDK's timer fires to flush buffered events. Increasing this reduces network activity. Decreasing it makes events appear in the dashboard sooner. Batch-full and lifecycle triggers fire independently of this timer.</p>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>TimeInterval</code> (seconds)</td><td><code>30</code></td></tr></table>
+  <p>How often the SDK's timer fires to flush buffered events. The timer only sends a request when there are pending events — an idle tick produces no HTTP call. Batch-full and lifecycle triggers fire independently of this timer.</p>
 
   <h3>flushBatchSize</h3>
-  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Int</code></td><td><code>50</code></td></tr></table>
+  <table><tr><th>Type</th><th>Default</th></tr><tr><td><code>Int</code></td><td><code>10</code></td></tr></table>
   <p>Maximum number of events sent in a single HTTP request. When the buffer reaches this count, a flush is triggered immediately regardless of the timer. Each flush drains the entire buffer in consecutive batches of this size.</p>
 
   <h3>sessionTimeout</h3>

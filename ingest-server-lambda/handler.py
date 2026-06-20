@@ -60,7 +60,8 @@ def neon_query(sql, params=None):
 def lookup_api_key(bearer_token):
     result = neon_query(
         'SELECT id, "appName", "bundleId", env, "captureEvents", "captureCrashes", '
-        '"captureRevenue", "captureScreens", mul, retention '
+        '"captureRevenue", "captureScreens", "captureHeatmaps", "captureRecordings", '
+        'mul, retention '
         'FROM "ApiKey" WHERE "keyValue" = $1 LIMIT 1',
         [bearer_token]
     )
@@ -192,6 +193,32 @@ def handle_ingest(bearer_token, body_bytes):
     return 200, {"accepted": accepted, "rejected": rejected, "errors": errors}
 
 
+def handle_config(bearer_token):
+    """
+    Process a GET /v1/config request.
+    Returns (status_code, response_dict) with the ApiKey's capture configuration.
+    """
+    try:
+        api_key, err = lookup_api_key(bearer_token)
+    except Exception as e:
+        print(f"[config auth error] {e}")
+        return 500, {"error": "database error during authentication"}
+
+    if err:
+        return 401, {"error": err}
+
+    return 200, {
+        "captureEvents":     api_key.get("captureEvents", True),
+        "captureScreens":    api_key.get("captureScreens", True),
+        "captureRevenue":    api_key.get("captureRevenue", True),
+        "captureCrashes":    api_key.get("captureCrashes", True),
+        "captureHeatmaps":   api_key.get("captureHeatmaps", False),
+        "captureRecordings": api_key.get("captureRecordings", False),
+        "mul":               api_key.get("mul", 1.0),
+        "retention":         api_key.get("retention", 90),
+    }
+
+
 
 
 # ── Lambda concurrency tracking ────────────────────────────────────────────────
@@ -264,6 +291,10 @@ def lambda_handler(event, context):
                 return _resp(200, {"status": "ok", "db": "connected"})
             except Exception as e:
                 return _resp(503, {"status": "error", "db": str(e)})
+
+        if method == "GET" and path == "/v1/config":
+            status, body = handle_config(bearer_token)
+            return _resp(status, body)
 
         if method == "POST" and path == "/v1/ingest":
             status, body = handle_ingest(bearer_token, body_bytes)

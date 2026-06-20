@@ -3,10 +3,12 @@ import StoreKit
 
 final class RevenueCapture {
     private let eventCapture: EventCapture
+    private let runtimeConfig: RuntimeConfig
     private var observerTask: Task<Void, Never>?
 
-    init(eventCapture: EventCapture) {
-        self.eventCapture = eventCapture
+    init(eventCapture: EventCapture, runtimeConfig: RuntimeConfig) {
+        self.eventCapture  = eventCapture
+        self.runtimeConfig = runtimeConfig
     }
 
     func startObserving() {
@@ -30,6 +32,7 @@ final class RevenueCapture {
         type: RevenueType,
         transactionId: String
     ) {
+        guard runtimeConfig.captureRevenue else { return }
         let props: [String: Any] = [
             "product_id":     productId,
             "amount":         amount,
@@ -43,6 +46,8 @@ final class RevenueCapture {
     // MARK: - Private
 
     private func trackTransaction(_ tx: Transaction) {
+        guard runtimeConfig.captureRevenue else { return }
+
         let productType: String
         switch tx.productType {
         case .autoRenewable:    productType = "subscription"

@@ -20,6 +20,9 @@ final class MonitoorCore {
     private var eventCapture: EventCapture!
     private var revenueCapture: RevenueCapture!
     private var crashCapture: CrashCapture!
+    private var runtimeConfig: RuntimeConfig!
+    private var superProperties: SuperProperties!
+    private var consentManager: ConsentManager!
 
     private var isConfigured = false
     private let setupLock = NSLock()
@@ -54,18 +57,25 @@ final class MonitoorCore {
     }
 
     private func bootstrap() throws {
-        deviceIdentity = DeviceIdentity()
-        userIdentity   = UserIdentity()
-        sessionManager = SessionManager(timeout: options.sessionTimeout)
-        deviceInfo     = DeviceInfo.current()
-        localBuffer    = try LocalBuffer()
-        httpClient     = HTTPClient()
+        deviceIdentity  = DeviceIdentity()
+        userIdentity    = UserIdentity()
+        sessionManager  = SessionManager(timeout: options.sessionTimeout)
+        deviceInfo      = DeviceInfo.current()
+        localBuffer     = try LocalBuffer()
+        httpClient      = HTTPClient()
+
+        // Shared runtime state, built before subsystems that read it.
+        runtimeConfig   = RuntimeConfig(options: options)
+        superProperties = SuperProperties()
+        consentManager  = ConsentManager()
 
         flushEngine = FlushEngine(
             buffer: localBuffer,
             httpClient: httpClient,
             apiKey: apiKey,
-            options: options
+            options: options,
+            runtimeConfig: runtimeConfig,
+            consent: consentManager
         )
 
         eventCapture = EventCapture(
@@ -75,7 +85,10 @@ final class MonitoorCore {
             deviceIdentity: deviceIdentity,
             deviceInfo: deviceInfo,
             flushEngine: flushEngine,
-            options: options
+            options: options,
+            runtimeConfig: runtimeConfig,
+            superProperties: superProperties,
+            consent: consentManager
         )
 
         let crashDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -88,7 +101,7 @@ final class MonitoorCore {
             ingestURL: options.ingestURL
         )
 
-        revenueCapture = RevenueCapture(eventCapture: eventCapture)
+        revenueCapture = RevenueCapture(eventCapture: eventCapture, runtimeConfig: runtimeConfig)
 
         // Upload pending crashes from the previous launch before anything else.
         if options.captureCrashes {
@@ -111,19 +124,33 @@ final class MonitoorCore {
         registerLifecycleObservers()
         flushEngine.start()
 
-        // Synthetic app_open event.
+        // Synthetic app_open event (suppressed automatically if opted out).
         eventCapture.track("$app_open", properties: [:])
+
+        // Fetch server-side configuration and apply it at runtime. Failures are
+        // ignored — the SDK keeps the local MonitoorOptions defaults.
+        fetchRemoteConfig()
+    }
+
+    private func fetchRemoteConfig() {
+        let key = apiKey
+        let url = options.ingestURL
+        Task { [weak self] in
+            guard let remote = await self?.httpClient.fetchConfig(apiKey: key, ingestURL: url) else { return }
+            self?.runtimeConfig.apply(remote)
+            MonitoorSDK.log("Remote config applied: events=\(remote.captureEvents) screens=\(remote.captureScreens) revenue=\(remote.captureRevenue) sampleRate=\(remote.mul)")
+        }
     }
 
     // MARK: - Public API implementations
 
     func capture(name: String, properties: [String: Any]) {
-        guard isConfigured else { return }
+        guard isConfigured, runtimeConfig.captureEvents else { return }
         eventCapture.track(name, properties: properties)
     }
 
     func captureScreen(_ name: String, properties: [String: Any]) {
-        guard isConfigured, options.captureScreens else { return }
+        guard isConfigured, runtimeConfig.captureScreens else { return }
         var props = properties
         props["$screen_name"] = name
         eventCapture.enqueue(name: "$screen_view", type: "event", properties: props)
@@ -164,6 +191,42 @@ final class MonitoorCore {
     var sessionDuration: TimeInterval {
         guard isConfigured else { return 0 }
         return sessionManager.duration
+    }
+
+    // MARK: - Super properties
+
+    func registerSuperProperties(_ properties: [String: Any]) {
+        guard isConfigured else { return }
+        superProperties.register(properties)
+    }
+
+    func unregisterSuperProperty(_ key: String) {
+        guard isConfigured else { return }
+        superProperties.unregister(key)
+    }
+
+    func clearSuperProperties() {
+        guard isConfigured else { return }
+        superProperties.clear()
+    }
+
+    // MARK: - Consent
+
+    var isOptedOut: Bool {
+        guard isConfigured else { return false }
+        return consentManager.isOptedOut
+    }
+
+    func optOut() {
+        guard isConfigured else { return }
+        consentManager.optOut()
+        // Purge anything already buffered so opted-out data never leaves the device.
+        try? localBuffer.clearAll()
+    }
+
+    func optIn() {
+        guard isConfigured else { return }
+        consentManager.optIn()
     }
 
     func flush(completion: (() -> Void)?) {

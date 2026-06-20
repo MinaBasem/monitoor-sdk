@@ -19,17 +19,18 @@
 │  │                              ──► Flush Layer              │  │
 │  │                              ──► Core Layer               │  │
 │  └──────────────────────────┬────────────────────────────────┘  │
-│                             │ HTTP POST /v1/ingest               │
+│         POST /v1/ingest · POST /v1/crashes · GET /v1/config       │
 └─────────────────────────────┼───────────────────────────────────┘
                               │
                               ▼
           ┌───────────────────────────────────┐
-          │  Ingest Service  (server.py)       │
-          │  Python · port 8080               │
+          │  Ingest Service  (server.py /      │
+          │  Lambda handler.py)               │
           │                                   │
           │  • Authenticates API key          │
           │  • Validates events               │
           │  • Deduplicates via idempotency   │
+          │  • Serves capture config          │
           └───────────────────┬───────────────┘
                               │ Neon HTTP SQL API
                               ▼
@@ -71,7 +72,7 @@ Layer     Layer         Layer          Layer
 
 ### Core Layer
 
-Provides identity and context that every event carries.
+Provides identity, context, live config, and consent state that govern every event.
 
 | File | Responsibility |
 |---|---|
@@ -79,6 +80,9 @@ Provides identity and context that every event carries.
 | `UserIdentity.swift` | Stores optional user identity. SHA-256 hashes the user ID on-device before storing or transmitting — Monitoor never sees plaintext IDs. |
 | `SessionManager.swift` | Tracks the current session UUID and start time. Starts a new session after 30 minutes of inactivity (configurable). Exposes `duration` for session length reporting. |
 | `DeviceInfo.swift` | Reads `app_version`, `build`, `os`, `device model`, `locale`, `timezone`, and `bundle_id` from the system at startup. Attached to every event as the `context` block. |
+| `RuntimeConfig.swift` | Thread-safe live source of truth for server-controllable flags (`captureEvents/Screens/Revenue`, `sampleRate`, `retentionDays`). Seeded from `MonitoorOptions`, overwritten by remote config from `GET /v1/config`. Subsystems read from here, not the frozen options snapshot. |
+| `SuperProperties.swift` | Global key/values merged into every event. Persisted to UserDefaults. Registered via `Monitoor.registerSuperProperties(_:)`. |
+| `ConsentManager.swift` | Persisted opt-out flag (UserDefaults), read at launch. When opted out, capture and flushing stop and the buffer is purged. |
 
 ---
 
@@ -88,7 +92,7 @@ Detects user actions and enqueues them into the buffer.
 
 | File | What it captures | How |
 |---|---|---|
-| `EventCapture.swift` | All `Monitoor.track()` calls, timed events (`$duration`), button taps | Applies `sampleRate` filter; writes to `LocalBuffer` synchronously; triggers flush when batch is full |
+| `EventCapture.swift` | All `Monitoor.track()` calls, timed events (`$duration`), button taps | Single choke point: gates on consent (opt-out), merges super properties, applies live `sampleRate`, writes to `LocalBuffer` synchronously; triggers flush when batch is full |
 | `ScreenCapture.swift` | Screen views (`$screen_view`) | UIKit: swizzles `UIViewController.viewDidAppear()`. SwiftUI: `.monitoorScreen()` view modifier |
 | `ButtonCapture.swift` | Button presses | SwiftUI: `.monitoorTap()` uses `simultaneousGesture(TapGesture())`. UIKit: `MonitoorButton` subclass or `UIButton.monitoor_trackTaps()` via associated-object target |
 | `RevenueCapture.swift` | Revenue transactions | StoreKit 2: subscribes to `Transaction.updates`. Manual: `Monitoor.trackRevenue()` |
@@ -131,7 +135,6 @@ Flush triggered
 dequeue(limit: 50)  ←── reads from SQLite buffer
     │
     ├── encode to JSON
-    ├── gzip compress (if > 1 KB)
     └── POST /v1/ingest
             │
             ├── 2xx  → markSent (delete rows) → fetch next 50 → repeat
@@ -144,17 +147,19 @@ dequeue(limit: 50)  ←── reads from SQLite buffer
 
 | Trigger | Condition |
 |---|---|
-| Timer | Every `flushInterval` seconds (default: 20s) |
-| Batch full | When pending count reaches `flushBatchSize` (default: 50) |
+| Timer | Every `flushInterval` seconds (default: 30s) — **only if** the buffer has pending events |
+| Batch full | When pending count reaches `flushBatchSize` (default: 10) |
 | App backgrounds | `UIApplication.didEnterBackgroundNotification` — uses a background task to finish |
 | App terminates | `UIApplication.willTerminateNotification` — synchronous flush, 3s deadline |
-| Network restored | `NWPathMonitor` path becomes `.satisfied` |
+| Network restored | Genuine offline → online transition (`NWPathMonitor`) — only if events are pending |
+
+When opted out (see Consent), `FlushEngine.flush()` is a no-op and transmits nothing.
 
 | File | Responsibility |
 |---|---|
-| `FlushEngine.swift` | Owns the timer, network monitor, lifecycle observers, and the drain loop. |
-| `HTTPClient.swift` | URLSession wrapper. Sends `POST /v1/ingest` and `POST /v1/crashes`. Parses `IngestResponse`. |
-| `BatchEncoder.swift` | JSON-encodes `IngestBatch`. gzip-compresses payloads > 1 KB using the system Compression framework. |
+| `FlushEngine.swift` | Owns the timer, network monitor, lifecycle observers, and the drain loop. Reads live `retentionDays` from `RuntimeConfig` for pruning. |
+| `HTTPClient.swift` | URLSession wrapper. Sends `POST /v1/ingest`, `POST /v1/crashes`, and fetches `GET /v1/config`. Parses `IngestResponse` / `RemoteConfigResponse`. |
+| `BatchEncoder.swift` | JSON-encodes `IngestBatch` as compact UTF-8. (Payload compression was removed; payloads are tiny.) |
 
 ---
 
@@ -163,7 +168,7 @@ dequeue(limit: 50)  ←── reads from SQLite buffer
 | File | Types defined |
 |---|---|
 | `Event.swift` | `BufferedEvent`, `BufferRowType`, `EventContext`, `WireEvent`, `PendingEvent`, `AnyCodable` |
-| `Batch.swift` | `IngestBatch`, `IngestResponse`, `IngestError`, `OutboundBatch` |
+| `Batch.swift` | `IngestBatch`, `IngestResponse`, `IngestError`, `RemoteConfigResponse`, `OutboundBatch` |
 | `CrashReport.swift` | `CrashReport`, `CrashThread`, `CrashFrame`, `CrashResponse` |
 
 ---
@@ -176,7 +181,6 @@ Every flush sends a single HTTP request:
 POST {ingestURL}/v1/ingest
 Authorization: Bearer mn_dev_…  (or mn_live_…)
 Content-Type: application/json
-Content-Encoding: gzip          (when payload > 1 KB)
 X-Monitoor-SDK-Version: 1.0.0
 
 {
@@ -237,12 +241,25 @@ The ingest server inserts with `ON CONFLICT ("idempotencyKey") DO NOTHING`. If t
 | Screen recordings | Off by default. Opt-in via `captureRecordings: true`. Not yet implemented. |
 | Heatmaps | Off by default. Opt-in via `captureHeatmaps: true`. Not yet implemented. |
 | IDFA / IDFV | Never collected. No ATT prompt required. |
+| Opt-out | `Monitoor.optOut()` halts all capture + transmission and purges the local buffer; persisted across launches. `Monitoor.optIn()` resumes. |
+
+---
+
+## Consent, Super Properties & Remote Config
+
+**Consent** — `ConsentManager` persists an opt-out flag in UserDefaults, read at launch. The opt-out check is enforced at the single `EventCapture.enqueue` choke point and in `FlushEngine.flush`, so opting out stops capture, stops transmission, and purges the buffer.
+
+**Super properties** — `SuperProperties` persists a global key/value dictionary in UserDefaults. They are merged into every event inside `enqueue` (event-specific keys win on conflict).
+
+**Remote configuration** — at launch `MonitoorCore` calls `GET /v1/config`; the response (`RemoteConfigResponse`) is applied to the shared `RuntimeConfig`. Subsystems read the live `RuntimeConfig` rather than the frozen `MonitoorOptions`. Local options are the fallback used until the response arrives and whenever offline.
+
+> **Installation vs. runtime gating:** crash handlers, the StoreKit observer, and the UIKit swizzle are installed once at bootstrap from **local** options — a remote `true` cannot enable something never installed, but a remote `false` suppresses capture at the runtime gate.
 
 ---
 
 ## Configuration Reference
 
-All settings in `MonitoorOptions` mirror columns on the `ApiKey` database record:
+All settings in `MonitoorOptions` mirror columns on the `ApiKey` database record. The runtime-toggleable ones (capture flags, `sampleRate`, `retentionDays`) are **overridden at runtime** by `GET /v1/config`; the rest are local-only defaults.
 
 | Option | DB column | Default | Notes |
 |---|---|---|---|
@@ -255,9 +272,9 @@ All settings in `MonitoorOptions` mirror columns on the `ApiKey` database record
 | `captureRecordings` | `captureRecordings` | `false` | Opt-in |
 | `sampleRate` | `mul` | `1.0` | 0.0–1.0. System `$` events are never sampled out. |
 | `retentionDays` | `retention` | `90` | Max age of unsent events in local buffer |
-| `flushInterval` | — | `20s` | |
-| `flushBatchSize` | — | `50` | |
-| `sessionTimeout` | — | `30 min` | Inactivity before new session |
+| `flushInterval` | — | `30s` | Local-only. Timer flushes only when events are pending. |
+| `flushBatchSize` | — | `10` | Local-only. Events per HTTP request / batch-full trigger. |
+| `sessionTimeout` | — | `30 min` | Local-only. Inactivity before new session. |
 
 ---
 
@@ -305,9 +322,12 @@ monitoor-sdk/                    ← planning & ingest server repo
   PLAN.md                        ← implementation plan
   ARCHITECTURE.md                ← this file
   ingest-server/
-    server.py                    ← Python ingest service
+    server.py                    ← Python ingest service (POST /v1/ingest, GET /v1/config, …)
     .env                         ← credentials (gitignored)
     .env.example                 ← safe template (tracked)
+  ingest-server-lambda/
+    handler.py                   ← AWS Lambda ingest service (same routes, incl. GET /v1/config)
+    template.yaml                ← SAM deployment
 
 monitoor-ios-sdk/                ← Swift Package (separate repo)
   Package.swift
@@ -320,6 +340,9 @@ monitoor-ios-sdk/                ← Swift Package (separate repo)
       SessionManager.swift
       UserIdentity.swift
       DeviceInfo.swift
+      RuntimeConfig.swift        ← live server-controllable config
+      SuperProperties.swift      ← global event properties (persisted)
+      ConsentManager.swift       ← opt-out flag (persisted)
     Capture/
       EventCapture.swift
       ScreenCapture.swift
@@ -335,7 +358,7 @@ monitoor-ios-sdk/                ← Swift Package (separate repo)
       BatchEncoder.swift
     Models/
       Event.swift
-      Batch.swift
+      Batch.swift                ← incl. RemoteConfigResponse
       CrashReport.swift
   Tests/MonitoorSDKTests/
     BufferTests.swift
@@ -343,4 +366,7 @@ monitoor-ios-sdk/                ← Swift Package (separate repo)
     AuthTests.swift
     UserIdentityTests.swift
     BatchEncoderTests.swift
+    SuperPropertiesTests.swift
+    ConsentTests.swift
+    RuntimeConfigTests.swift
 ```

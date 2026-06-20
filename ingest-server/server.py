@@ -84,7 +84,8 @@ def lookup_api_key(bearer_token):
     """
     result = neon_query(
         'SELECT id, "appName", "bundleId", env, "captureEvents", "captureCrashes", '
-        '"captureRevenue", "captureScreens", mul, retention '
+        '"captureRevenue", "captureScreens", "captureHeatmaps", "captureRecordings", '
+        'mul, retention '
         'FROM "ApiKey" WHERE "keyValue" = $1 LIMIT 1',
         [bearer_token]
     )
@@ -232,6 +233,34 @@ def handle_ingest(bearer_token, body_bytes):
     }
 
 
+# ── Config handler ───────────────────────────────────────────────────────────
+
+def handle_config(bearer_token):
+    """
+    Process a GET /v1/config request.
+    Returns (status_code, response_dict) with the ApiKey's capture configuration.
+    """
+    try:
+        api_key, err = lookup_api_key(bearer_token)
+    except Exception as e:
+        print(f"  [config auth error] {e}")
+        return 500, {"error": "database error during authentication"}
+
+    if err:
+        return 401, {"error": err}
+
+    return 200, {
+        "captureEvents":     api_key.get("captureEvents", True),
+        "captureScreens":    api_key.get("captureScreens", True),
+        "captureRevenue":    api_key.get("captureRevenue", True),
+        "captureCrashes":    api_key.get("captureCrashes", True),
+        "captureHeatmaps":   api_key.get("captureHeatmaps", False),
+        "captureRecordings": api_key.get("captureRecordings", False),
+        "mul":               api_key.get("mul", 1.0),
+        "retention":         api_key.get("retention", 90),
+    }
+
+
 # ── HTTP request handler ───────────────────────────────────────────────────────
 
 class IngestHandler(http.server.BaseHTTPRequestHandler):
@@ -255,6 +284,16 @@ class IngestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json(200, {"status": "ok", "db": "connected"})
             except Exception as e:
                 self.send_json(503, {"status": "error", "db": str(e)})
+
+        elif self.path == "/v1/config":
+            auth = self.headers.get("Authorization", "")
+            if not auth.startswith("Bearer "):
+                self.send_json(401, {"error": "missing or invalid Authorization header"})
+                return
+            bearer_token = auth[len("Bearer "):]
+            status, response = handle_config(bearer_token)
+            self.send_json(status, response)
+
         else:
             self.send_json(404, {"error": "not found"})
 

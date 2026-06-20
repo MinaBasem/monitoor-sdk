@@ -75,22 +75,24 @@ PostgreSQL Event table  (Neon)
 
   <table>
     <tr><th>Trigger</th><th>When it fires</th></tr>
-    <tr><td>Timer</td><td>Every <code>flushInterval</code> seconds (default: 20s)</td></tr>
-    <tr><td>Batch full</td><td>When buffer reaches <code>flushBatchSize</code> events (default: 50)</td></tr>
+    <tr><td>Timer</td><td>Every <code>flushInterval</code> seconds (default: 30s) — only when events are pending</td></tr>
+    <tr><td>Batch full</td><td>When buffer reaches <code>flushBatchSize</code> events (default: 10)</td></tr>
     <tr><td>App backgrounds</td><td><code>UIApplication.didEnterBackgroundNotification</code> — a background task keeps the process alive to finish</td></tr>
     <tr><td>App terminates</td><td><code>UIApplication.willTerminateNotification</code> — synchronous flush with 3-second deadline</td></tr>
-    <tr><td>Network restored</td><td><code>NWPathMonitor</code> path becomes <code>.satisfied</code></td></tr>
+    <tr><td>Network restored</td><td>Genuine offline → online transition (<code>NWPathMonitor</code>) — only when events are pending</td></tr>
   </table>
+
+  <p>When the user has <a href="privacy.html">opted out</a>, the flush engine is a no-op and transmits nothing.</p>
 
   <h3>Drain loop</h3>
   <p>A flush does not send just one batch. It continuously sends batches of <code>flushBatchSize</code> events until the buffer is empty:</p>
   <pre><code>flush triggered
-  dequeue 50 events
+  dequeue 10 events
   POST /v1/ingest → 2xx
-  delete 50 rows from buffer
-  dequeue next 50 events
+  delete 10 rows from buffer
+  dequeue next 10 events
   POST /v1/ingest → 2xx
-  delete 50 rows
+  delete 10 rows
   dequeue → 0 rows
   stop
 </code></pre>
@@ -123,7 +125,6 @@ PostgreSQL Event table  (Neon)
   <pre><code>POST {ingestURL}/v1/ingest
 Authorization: Bearer mn_live_your_key
 Content-Type: application/json
-Content-Encoding: gzip  (when payload > 1 KB)
 X-Monitoor-SDK-Version: 1.0.0
 
 {

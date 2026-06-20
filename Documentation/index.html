@@ -271,11 +271,11 @@ MONITOOR_API_KEY=mn_dev_your_key_here</code></pre>
 </code></pre>
 
   <h3>Step 5 — Verify it's working</h3>
-  <p>Build and run. The SDK immediately sends a <code>$app_open</code> event. Within 20 seconds it appears in your Monitoor dashboard. In DEBUG builds, look for <code>[Monitoor]</code> lines in the Xcode console.</p>
+  <p>Build and run. The SDK immediately sends a <code>$app_open</code> event. Within 30 seconds it appears in your Monitoor dashboard. In DEBUG builds, look for <code>[Monitoor]</code> lines in the Xcode console.</p>
 
   <div class="callout callout-tip">
     <div class="callout-icon">💡</div>
-    <div class="callout-body">To force an immediate flush during testing instead of waiting 20 seconds: <code>Monitoor.flush()</code></div>
+    <div class="callout-body">To force an immediate flush during testing instead of waiting for the timer: <code>Monitoor.flush()</code></div>
   </div>
 
 
@@ -617,6 +617,75 @@ MONITOOR_API_KEY=mn_dev_your_key_here</code></pre>
 
 <span class="cm">// To disable (e.g. if you use another crash SDK like Crashlytics):</span>
 <span class="tp">MonitoorOptions</span>(<span class="pm">captureCrashes</span>: <span class="nm">false</span>)
+</code></pre>
+    </div>
+  </div>
+
+  <!-- Super properties -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">🌐</div>
+      <div>
+        <div class="tracker-title">Super properties</div>
+        <div class="tracker-subtitle">Global key/values merged into every event &nbsp;·&nbsp; persisted across launches</div>
+      </div>
+      <span class="tracker-badge badge-manual">Manual</span>
+    </div>
+    <div class="tracker-body">
+      <p>Register once and the values attach to every subsequent event automatically — no need to repeat them on each <code>track()</code> call. Event-specific properties override super properties on key conflict.</p>
+      <pre><code><span class="cm">// Register once (e.g. after sign-in)</span>
+<span class="tp">Monitoor</span>.<span class="fn">registerSuperProperties</span>([
+    <span class="str">"app_tier"</span>:  <span class="str">"pro"</span>,
+    <span class="str">"ab_cohort"</span>: <span class="str">"B"</span>
+])
+
+<span class="cm">// Every event now carries app_tier and ab_cohort automatically</span>
+<span class="tp">Monitoor</span>.<span class="fn">track</span>(<span class="str">"song_played"</span>)
+
+<span class="cm">// Remove one, or clear them all</span>
+<span class="tp">Monitoor</span>.<span class="fn">unregisterSuperProperty</span>(<span class="str">"ab_cohort"</span>)
+<span class="tp">Monitoor</span>.<span class="fn">clearSuperProperties</span>()
+</code></pre>
+    </div>
+  </div>
+
+  <!-- Consent -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">🔒</div>
+      <div>
+        <div class="tracker-title">Consent &amp; opt-out</div>
+        <div class="tracker-subtitle">Runtime control for GDPR / App Store consent &nbsp;·&nbsp; persisted across launches</div>
+      </div>
+      <span class="tracker-badge badge-manual">Manual</span>
+    </div>
+    <div class="tracker-body">
+      <p>Stop all collection at runtime. When opted out, nothing is captured or transmitted and the local buffer is purged.</p>
+      <pre><code><span class="cm">// Wire to your consent banner</span>
+<span class="kw">func</span> <span class="fn">onConsentChanged</span>(granted: <span class="tp">Bool</span>) {
+    granted ? <span class="tp">Monitoor</span>.<span class="fn">optIn</span>() : <span class="tp">Monitoor</span>.<span class="fn">optOut</span>()
+}
+
+<span class="kw">if</span> <span class="tp">Monitoor</span>.isOptedOut { <span class="cm">/* collection is paused */</span> }
+</code></pre>
+    </div>
+  </div>
+
+  <!-- Remote configuration -->
+  <div class="tracker-section">
+    <div class="tracker-header">
+      <div class="tracker-icon">📡</div>
+      <div>
+        <div class="tracker-title">Remote configuration</div>
+        <div class="tracker-subtitle">Dashboard-controlled capture flags &nbsp;·&nbsp; no app update needed</div>
+      </div>
+      <span class="tracker-badge badge-auto">Automatic</span>
+    </div>
+    <div class="tracker-body">
+      <p>On launch the SDK fetches your API key's configuration from <code>GET /v1/config</code> and applies it at runtime. Toggle capture flags, the sampling rate, or retention from your dashboard and connected apps pick it up on their next launch — no rebuild required. Your local <code>MonitoorOptions</code> act as fallbacks until the config arrives and while offline.</p>
+      <pre><code><span class="cm">// Nothing to call — configure() fetches and applies remote config.</span>
+<span class="cm">// Dashboard changes to captureEvents / captureScreens / captureRevenue /</span>
+<span class="cm">// sampleRate (mul) / retention take effect on the next app launch.</span>
 </code></pre>
     </div>
   </div>
